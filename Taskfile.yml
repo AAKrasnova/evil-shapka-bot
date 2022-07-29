@@ -1,0 +1,12 @@
+version: '3'
+
+tasks:
+  gen_migration:
+    cmds:
+      - migrate create -ext sql -dir migrations -seq {{.CLI_ARGS}}
+
+  migrate:
+    vars:
+      DB_PATH: db
+    cmds:
+      - migrate -source file://migrations -database sqlite3://{{.DB_PATH}} up

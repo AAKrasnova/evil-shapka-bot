@@ -1,11 +1,16 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"log"
 	"os"
 
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"github.com/pkg/errors"
+
+	"github.com/jmoiron/sqlx"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 type config struct {
@@ -37,30 +42,27 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	bot, err := tgbotapi.NewBotAPI(cfg.TgToken)
+
+	if len(os.Args) == 1 {
+		return errors.New("don't know what to do")
+	}
+
+	rawDB, err := sql.Open("sqlite3", "db")
 	if err != nil {
 		return err
 	}
 
-	bot.Debug = true
-
-	log.Printf("Authorized on account %s", bot.Self.UserName)
-
-	u := tgbotapi.NewUpdate(0)
-	u.Timeout = 60
-
-	updates := bot.GetUpdatesChan(u)
-
-	for update := range updates {
-		if update.Message != nil { // If we got a message
-			log.Printf("[%s] %s", update.Message.From.UserName, update.Message.Text)
-
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, update.Message.Text)
-			msg.ReplyToMessageID = update.Message.MessageID
-
-			bot.Send(msg)
-		}
+	switch os.Args[1] {
+	case "bot":
+		return runBot(rawDB, cfg.TgToken)
 	}
 
 	return nil
+}
+
+func runBot(rawDB *sql.DB, token string) error {
+	db := sqlx.NewDb(rawDB, "sqlite3")
+	s := NewStore(db)
+	b := NewBot(s)
+	return b.Run(token)
 }
