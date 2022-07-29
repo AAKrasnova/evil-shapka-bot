@@ -7,6 +7,11 @@ tasks:
 
   migrate:
     vars:
-      DB_PATH: db
+      DB_PATH: reminder.db
     cmds:
       - migrate -source file://migrations -database sqlite3://{{.DB_PATH}} up
+  
+  bot:
+    cmds:
+      - go build -o bot.exe
+      - bot.exe

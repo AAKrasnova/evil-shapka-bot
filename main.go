@@ -6,8 +6,6 @@ import (
 	"log"
 	"os"
 
-	"github.com/pkg/errors"
-
 	"github.com/jmoiron/sqlx"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -43,26 +41,20 @@ func run() error {
 		return err
 	}
 
-	if len(os.Args) == 1 {
-		return errors.New("don't know what to do")
-	}
-
-	rawDB, err := sql.Open("sqlite3", "db")
+	rawDB, err := sql.Open("sqlite3", "reminder.db")
 	if err != nil {
 		return err
 	}
 
-	switch os.Args[1] {
-	case "bot":
-		return runBot(rawDB, cfg.TgToken)
-	}
-
-	return nil
+	return runBot(rawDB, cfg.TgToken)
 }
 
 func runBot(rawDB *sql.DB, token string) error {
 	db := sqlx.NewDb(rawDB, "sqlite3")
 	s := NewStore(db)
-	b := NewBot(s)
-	return b.Run(token)
+	b, err := NewBot(s, token)
+	if err != nil {
+		return err
+	}
+	return b.Run()
 }
