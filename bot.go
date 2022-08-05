@@ -35,8 +35,14 @@ func (b *Bot) Run() error {
 			log.Printf("[%s] %s", msg.From.UserName, msg.Text)
 
 			userID := uuid.IntToUUID(int(msg.From.ID))
-			log.Printf("user id %s", userID)
-			err := b.s.CreateUser(context.TODO(), userID)
+			userTgName := msg.From.UserName
+			userFirstName := msg.From.FirstName
+			userLastName := msg.From.LastName
+			userLang := msg.From.LanguageCode
+
+			log.Printf("user id %q, tgName %q, name %q %q, lang %q", userID, userTgName, userFirstName, userLastName, userLang)
+
+			err := b.s.CreateUser(context.TODO(), userID, userTgName, userFirstName, userLastName, userLang)
 			if err != nil {
 				log.Println("error while creating user", err)
 				continue

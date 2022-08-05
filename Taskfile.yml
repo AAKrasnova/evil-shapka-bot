@@ -14,4 +14,4 @@ tasks:
   bot:
     cmds:
       - go build -o bot.exe
-      - bot.exe
+      - .\bot.exe
