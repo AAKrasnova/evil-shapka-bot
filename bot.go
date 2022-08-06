@@ -9,7 +9,6 @@ import (
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 
-	gUUID "github.com/google/uuid"
 	"github.com/pechorka/uuid"
 )
 
@@ -34,6 +33,7 @@ func readCMS(path string) (*texts, error) {
 type Bot struct {
 	s   *Store
 	bot *tgbotapi.BotAPI
+	t   *texts
 }
 
 func NewBot(s *Store, token string) (*Bot, error) {
@@ -41,17 +41,17 @@ func NewBot(s *Store, token string) (*Bot, error) {
 	if err != nil {
 		return nil, err
 	}
+	cms, err := readCMS("./cms.json")
+	if err != nil {
+		return nil, err
+	}
 	bot.Debug = true
 	log.Printf("Authorized on account %s", bot.Self.UserName)
 
-	return &Bot{s: s, bot: bot}, nil
+	return &Bot{s: s, bot: bot, t: cms}, nil
 }
 
 func (b *Bot) Run() error {
-	cms, err := readCMS("./cms.json")
-	if err != nil {
-		return err
-	}
 
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
@@ -65,17 +65,17 @@ func (b *Bot) Run() error {
 
 		switch msg.Command() {
 		case "add":
-			b.add(msg, cms)
+			b.add(msg)
 		case "start":
-			b.start(msg, cms)
+			b.start(msg)
 		case "":
-			b.add(msg, cms)
+			b.add(msg)
 		}
 	}
 	return nil
 }
 
-func (b *Bot) start(msg *tgbotapi.Message, cms *texts) {
+func (b *Bot) start(msg *tgbotapi.Message) {
 	log.Printf("[%s] %s", msg.From.UserName, msg.Text)
 
 	userID := uuid.IntToUUID(int(msg.From.ID))
@@ -89,19 +89,19 @@ func (b *Bot) start(msg *tgbotapi.Message, cms *texts) {
 	err := b.s.CreateUser(context.TODO(), userID, userTgName, userTgFirstName, userTgLastName, userTgLang)
 	if err != nil {
 		log.Println("error while creating user", err)
-		b.reply(msg, cms.DefaultErrorText)
+		b.reply(msg, b.t.DefaultErrorText)
 	}
 }
 
-func (b *Bot) add(msg *tgbotapi.Message, cms *texts) {
+func (b *Bot) add(msg *tgbotapi.Message) {
 	text := strings.TrimSpace(strings.TrimPrefix(msg.Text, "/add "))
 
-	/* Если пользователь прислал только ссылку на хранение */
+	/* Если пользователь прислал только ссылку */
 	if strings.HasPrefix(text, "http://") || strings.HasPrefix(text, "https://") {
 		if strings.Contains(text, " ") || strings.Contains(text, "\n") {
 			b.reply(msg, "What do you want to do by"+text+",human?")
 		} else {
-			addKnowledge(b, msg, cms, text)
+			addKnowledge(b, msg, text)
 		}
 	}
 
@@ -122,16 +122,15 @@ func (b *Bot) add(msg *tgbotapi.Message, cms *texts) {
 	// }
 }
 
-func addKnowledge(b *Bot, msg *tgbotapi.Message, cms *texts, link string) {
+func addKnowledge(b *Bot, msg *tgbotapi.Message, link string) {
 	userID := uuid.IntToUUID(int(msg.From.ID))
-	knowledgegUUID := gUUID.New()
-	knowledgeID := knowledgegUUID.String()
+	knowledgeID := uuid.New()
 	log.Printf("user id %q, link %q", userID, link)
 
 	err := b.s.CreateKnowledge(context.TODO(), knowledgeID, userID, link)
 	if err != nil {
-		log.Println("error while creating user", err)
-		b.reply(msg, cms.DefaultErrorText)
+		log.Println("error while creating knowledge", err)
+		b.reply(msg, b.t.DefaultErrorText)
 	}
 }
 
