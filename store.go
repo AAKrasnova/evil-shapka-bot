@@ -26,3 +26,9 @@ func (s *Store) IsExists(id string) (bool, error) {
 	err := s.db.QueryRow("select 1 from users where id = $1", id).Scan(&e)
 	return e, errors.Wrap(err, "seeking user")
 }
+
+func (s *Store) CreateKnowledge(ctx context.Context, userID string, id string, link string) error {
+	_, err := s.db.ExecContext(ctx, "INSERT OR IGNORE INTO knowledge(id, adder, link) VALUES ($1, $2, $3)", id, userID, link)
+
+	return errors.Wrap(err, "adding material")
+}

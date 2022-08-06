@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"log"
 	"os"
+	"strings"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 
+	gUUID "github.com/google/uuid"
 	"github.com/pechorka/uuid"
 )
 
@@ -67,7 +69,7 @@ func (b *Bot) Run() error {
 		case "start":
 			b.start(msg, cms)
 		case "":
-			b.reply(msg, msg.Text)
+			b.add(msg, cms)
 		}
 	}
 	return nil
@@ -91,24 +93,46 @@ func (b *Bot) start(msg *tgbotapi.Message, cms *texts) {
 	}
 }
 
-func (mngr *Bot) add(msg *tgbotapi.Message, cms *texts) {
-	// text := strings.TrimSpace(strings.TrimPrefix(msg.Text, "/add "))
+func (b *Bot) add(msg *tgbotapi.Message, cms *texts) {
+	text := strings.TrimSpace(strings.TrimPrefix(msg.Text, "/add "))
+
+	/* Если пользователь прислал только ссылку на хранение */
+	if strings.HasPrefix(text, "http://") || strings.HasPrefix(text, "https://") {
+		if strings.Contains(text, " ") || strings.Contains(text, "\n") {
+			b.reply(msg, "What do you want to do by"+text+",human?")
+		} else {
+			addKnowledge(b, msg, cms, text)
+		}
+	}
 
 	// task, day, err := parseTaskAndDay(text)
 	// if err != nil {
-	// 	mngr.reply(msg, "failed to parse task: "+err.Error())
+	// 	b.reply(msg, "failed to parse task: "+err.Error())
 	// 	return
 	// }
 
 	// userID := uuid.IntToUUID(int(msg.From.ID))
 
-	// err = mngr.secretary.AddTask(userID, task, day)
+	// err = b.secretary.AddTask(userID, task, day)
 	// switch err {
 	// case nil:
-	// 	mngr.reply(msg, "task added")
+	// 	b.reply(msg, "task added")
 	// default:
-	// 	mngr.reply(msg, "failed to add task: "+err.Error())
+	// 	b.reply(msg, "failed to add task: "+err.Error())
 	// }
+}
+
+func addKnowledge(b *Bot, msg *tgbotapi.Message, cms *texts, link string) {
+	userID := uuid.IntToUUID(int(msg.From.ID))
+	knowledgegUUID := gUUID.New()
+	knowledgeID := knowledgegUUID.String()
+	log.Printf("user id %q, link %q", userID, link)
+
+	err := b.s.CreateKnowledge(context.TODO(), knowledgeID, userID, link)
+	if err != nil {
+		log.Println("error while creating user", err)
+		b.reply(msg, cms.DefaultErrorText)
+	}
 }
 
 func (b *Bot) reply(to *tgbotapi.Message, text string) {
