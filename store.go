@@ -15,8 +15,8 @@ func NewStore(db *sqlx.DB) *Store {
 	return &Store{db: db}
 }
 
-func (s *Store) CreateUser(ctx context.Context, id string, tgname string, first_name string, last_name string, language string) error {
-	_, err := s.db.ExecContext(ctx, "INSERT OR IGNORE INTO users(id, tgname, first_name, last_name, language) VALUES ($1, $2, $3, $4, $5)", id, tgname, first_name, last_name, language)
+func (s *Store) CreateUser(ctx context.Context, id string, tg_username string, tg_first_name string, tg_last_name string, tg_language string) error {
+	_, err := s.db.ExecContext(ctx, "INSERT OR IGNORE INTO users(id, tg_username, tg_first_name, tg_last_name, tg_language) VALUES ($1, $2, $3, $4, $5)", id, tg_username, tg_first_name, tg_last_name, tg_language)
 
 	return errors.Wrap(err, "Creating user in db")
 }

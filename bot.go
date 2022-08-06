@@ -28,21 +28,21 @@ func NewBot(s *Store, token string) (*Bot, error) {
 func (b *Bot) Run() error {
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
-	updates := b.bot.GetUpdatesChan(u)
 
+	updates := b.bot.GetUpdatesChan(u)
 	for update := range updates {
 		if msg := update.Message; msg != nil { // If we got a message
 			log.Printf("[%s] %s", msg.From.UserName, msg.Text)
 
 			userID := uuid.IntToUUID(int(msg.From.ID))
 			userTgName := msg.From.UserName
-			userFirstName := msg.From.FirstName
-			userLastName := msg.From.LastName
-			userLang := msg.From.LanguageCode
+			userTgFirstName := msg.From.FirstName
+			userTgLastName := msg.From.LastName
+			userTgLang := msg.From.LanguageCode
 
-			log.Printf("user id %q, tgName %q, name %q %q, lang %q", userID, userTgName, userFirstName, userLastName, userLang)
+			log.Printf("user id %q, tgName %q, name %q %q, lang %q", userID, userTgName, userTgFirstName, userTgLastName, userTgLang)
 
-			err := b.s.CreateUser(context.TODO(), userID, userTgName, userFirstName, userLastName, userLang)
+			err := b.s.CreateUser(context.TODO(), userID, userTgName, userTgFirstName, userTgLastName, userTgLang)
 			if err != nil {
 				log.Println("error while creating user", err)
 				continue
