@@ -78,7 +78,8 @@ func (b *Bot) Run() error {
 func (b *Bot) start(msg *tgbotapi.Message) {
 	log.Printf("[%s] %s", msg.From.UserName, msg.Text)
 
-	userID := uuid.IntToUUID(int(msg.From.ID))
+	userID := uuid.IntToUUID(msg.From.ID)
+	userTgID := msg.From.ID
 	userTgName := msg.From.UserName
 	userTgFirstName := msg.From.FirstName
 	userTgLastName := msg.From.LastName
@@ -86,7 +87,7 @@ func (b *Bot) start(msg *tgbotapi.Message) {
 
 	log.Printf("user id %q, tgName %q, name %q %q, lang %q", userID, userTgName, userTgFirstName, userTgLastName, userTgLang)
 
-	err := b.s.CreateUser(context.TODO(), userID, userTgName, userTgFirstName, userTgLastName, userTgLang)
+	err := b.s.CreateUser(context.TODO(), userID, userTgID, userTgName, userTgFirstName, userTgLastName, userTgLang)
 	if err != nil {
 		log.Println("error while creating user", err)
 		b.reply(msg, b.t.DefaultErrorText)
@@ -123,7 +124,23 @@ func (b *Bot) add(msg *tgbotapi.Message) {
 }
 
 func addKnowledge(b *Bot, msg *tgbotapi.Message, link string) {
-	userID := uuid.IntToUUID(int(msg.From.ID))
+	userID := uuid.IntToUUID(msg.From.ID)
+	userExists, _err := b.s.IsExists(userID)
+	if _err == nil {
+		if !userExists {
+			userTgID := msg.From.ID
+			userTgName := msg.From.UserName
+			userTgFirstName := msg.From.FirstName
+			userTgLastName := msg.From.LastName
+			userTgLang := msg.From.LanguageCode
+			err := b.s.CreateUser(context.TODO(), userID, userTgID, userTgName, userTgFirstName, userTgLastName, userTgLang)
+			if err != nil {
+				log.Println("error while creating user", err)
+				b.reply(msg, b.t.DefaultErrorText)
+			}
+		}
+	}
+
 	knowledgeID := uuid.New()
 	log.Printf("user id %q, link %q", userID, link)
 

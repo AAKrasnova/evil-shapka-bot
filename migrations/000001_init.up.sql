@@ -1,5 +1,6 @@
 CREATE TABLE users (
 	id varchar PRIMARY KEY,
+       tg_id int,
 	tg_username varchar UNIQUE,
 	tg_first_name varchar,
 	tg_last_name varchar,
@@ -17,7 +18,11 @@ CREATE TABLE knowledge (
 	link text NOT NULL,
 	word_count integer,
 	duration integer,
-	language varchar
+	language varchar,
+       FOREIGN KEY (adder) 
+       REFERENCES users (id) 
+              ON DELETE NO ACTION
+              ON UPDATE NO ACTION
 );
 
 CREATE TABLE consumed (
@@ -37,6 +42,3 @@ CREATE TABLE consumed (
          ON DELETE NO ACTION 
          ON UPDATE NO ACTION
 );
-
-
-
