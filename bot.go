@@ -96,35 +96,67 @@ func (b *Bot) start(msg *tgbotapi.Message) {
 
 func (b *Bot) add(msg *tgbotapi.Message) {
 	text := strings.TrimSpace(strings.TrimPrefix(msg.Text, "/add "))
+	// text := msg.CommandArguments() - для команд, которые настоящие команды, а не которые пустую команду берут
 
 	/* Если пользователь прислал только ссылку */
 	if strings.HasPrefix(text, "http://") || strings.HasPrefix(text, "https://") {
-		if strings.Contains(text, " ") || strings.Contains(text, "\n") {
-			b.reply(msg, "What do you want to do by"+text+",human?")
+		if strings.Contains(text, " ") || strings.Contains(text, "\n") { //Это типа проверка на то, чтобы была только ссылка и ничего больше
+			b.reply(msg, "What do you want to do by "+text+", human?")
 		} else {
-			addKnowledge(b, msg, text)
+			addKnowledgeFast(b, msg, text)
+		}
+	} else {
+		args, err := parseKnowledge(text)
+		if err != nil {
+			log.Println("error while parsing knowledge", err)
+			b.reply(msg, "failed to parse knowledge: "+err.Error())
+			return
+		}
+
+		err = addKnowledgeFull(b, msg, args)
+		switch err {
+		case nil:
+			b.reply(msg, "task added")
+		default:
+			b.reply(msg, "failed to add task: "+err.Error())
+		}
+	}
+}
+
+func (args []string) parseKnowledge(text string) {
+	//TODO правильно ли я возвращаю массив? А как возвращать keyvalue?
+
+}
+
+//func addKnowledgeFull(b *Bot, msg *tgbotapi.Message, sphere string, name string, type string, subtype string, theme string, link string, wordCount string, duration string, language string) {
+func addKnowledgeFull(b *Bot, msg *tgbotapi.Message, args []string) {
+	// @pechor, где лучше преобразовывать юзерИД? В каждой функции addKnowledge или передавать уже в неё как аргумент?
+}
+
+func addKnowledgeFast(b *Bot, msg *tgbotapi.Message, link string) {
+	userID := uuid.IntToUUID(msg.From.ID)
+	userExists, _err := b.s.IsExists(userID)
+	if _err == nil {
+		if !userExists {
+			createUser(b, msg)
 		}
 	}
 
-	// task, day, err := parseTaskAndDay(text)
-	// if err != nil {
-	// 	b.reply(msg, "failed to parse task: "+err.Error())
-	// 	return
-	// }
+	knowledgeID := uuid.New()
+	log.Printf("user id %q, link %q", userID, link)
 
-	// userID := uuid.IntToUUID(int(msg.From.ID))
-
-	// err = b.secretary.AddTask(userID, task, day)
-	// switch err {
-	// case nil:
-	// 	b.reply(msg, "task added")
-	// default:
-	// 	b.reply(msg, "failed to add task: "+err.Error())
-	// }
+	err := b.s.CreateKnowledge(context.TODO(), knowledgeID, userID, link)
+	if err != nil {
+		log.Println("error while creating knowledge", err)
+		b.reply(msg, b.t.DefaultErrorText)
+	} else {
+		b.reply(msg, "Успешно добавлено!")
+	}
 }
 
-func addKnowledge(b *Bot, msg *tgbotapi.Message, link string) {
+func createUser(b *Bot, msg *tgbotapi.Message) {
 	userID := uuid.IntToUUID(msg.From.ID)
+
 	userExists, _err := b.s.IsExists(userID)
 	if _err == nil {
 		if !userExists {
@@ -139,15 +171,6 @@ func addKnowledge(b *Bot, msg *tgbotapi.Message, link string) {
 				b.reply(msg, b.t.DefaultErrorText)
 			}
 		}
-	}
-
-	knowledgeID := uuid.New()
-	log.Printf("user id %q, link %q", userID, link)
-
-	err := b.s.CreateKnowledge(context.TODO(), knowledgeID, userID, link)
-	if err != nil {
-		log.Println("error while creating knowledge", err)
-		b.reply(msg, b.t.DefaultErrorText)
 	}
 }
 

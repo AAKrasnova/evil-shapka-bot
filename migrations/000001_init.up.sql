@@ -11,6 +11,7 @@ CREATE TABLE knowledge (
 	id varchar PRIMARY KEY,
 	name varchar,
 	adder varchar,
+       timeAdded DATETIME,
 	type varchar,
 	subtype varchar,
 	theme varchar,
@@ -19,6 +20,7 @@ CREATE TABLE knowledge (
 	word_count integer,
 	duration integer,
 	language varchar,
+       deleted integer,
        FOREIGN KEY (adder) 
        REFERENCES users (id) 
               ON DELETE NO ACTION
@@ -32,6 +34,7 @@ CREATE TABLE consumed (
   date datetime,
   ready_to_re integer,
   rate integer,
+  attentionRate integer,
   comment text,
   FOREIGN KEY (knowledge_id) 
   REFERENCES knowledge (id) 

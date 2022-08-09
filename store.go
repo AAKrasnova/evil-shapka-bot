@@ -28,7 +28,7 @@ func (s *Store) IsExists(id string) (bool, error) {
 }
 
 func (s *Store) CreateKnowledge(ctx context.Context, id string, userID string, link string) error {
-	_, err := s.db.ExecContext(ctx, "INSERT OR IGNORE INTO knowledge(id, adder, link) VALUES ($1, $2, $3)", id, userID, link)
+	_, err := s.db.ExecContext(ctx, "INSERT OR IGNORE INTO knowledge(id, adder, link, timeAdded) VALUES ($1, $2, $3, $4)", id, userID, link, datetime.Now())
 
 	return errors.Wrap(err, "adding material")
 }
