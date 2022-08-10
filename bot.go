@@ -16,6 +16,22 @@ type texts struct {
 	DefaultErrorText string `json:"default_error_text"`
 }
 
+type knowledge struct {
+	id    string
+	name  string
+	adder string
+	// timeAdded     time.Time
+	knowledgeType string //type - keyword in Go, so couldn't use it
+	subtype       string
+	theme         string
+	sphere        string
+	link          string
+	wordCount     int
+	duration      int
+	language      string
+	// deleted       bool
+}
+
 func readCMS(path string) (*texts, error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -106,14 +122,16 @@ func (b *Bot) add(msg *tgbotapi.Message) {
 			addKnowledgeFast(b, msg, text)
 		}
 	} else {
-		args, err := parseKnowledge(text)
+		knw, err := parseKnowledge(text)
+		knw.adder = uuid.IntToUUID(msg.From.ID)
+
 		if err != nil {
 			log.Println("error while parsing knowledge", err)
 			b.reply(msg, "failed to parse knowledge: "+err.Error())
 			return
 		}
 
-		err = addKnowledgeFull(b, msg, args)
+		addKnowledgeFull(b, msg, knw)
 		switch err {
 		case nil:
 			b.reply(msg, "task added")
@@ -123,13 +141,31 @@ func (b *Bot) add(msg *tgbotapi.Message) {
 	}
 }
 
-func (args []string) parseKnowledge(text string) {
-	//TODO правильно ли я возвращаю массив? А как возвращать keyvalue?
-
+func parseKnowledge(text string) (knowledge, error) {
+	var knw knowledge = knowledge{
+		id:            uuid.New(),
+		name:          "",
+		knowledgeType: "",
+		subtype:       "",
+		theme:         "",
+		sphere:        "",
+		link:          "",
+		wordCount:     0,
+		duration:      0,
+		language:      ""}
+	return knw, nil
 }
 
+// Ссылка: https://www.linkedin.com/video/event/urn:li:ugcPost:6950083329849221120/
+// Название: Webinar: Importance of Market Research & Cognitive Design by Amazon Sr PM
+// Длительность: 10m
+// Сфера:
+// Тема:
+// Тип:
+// Подтип:
+
 //func addKnowledgeFull(b *Bot, msg *tgbotapi.Message, sphere string, name string, type string, subtype string, theme string, link string, wordCount string, duration string, language string) {
-func addKnowledgeFull(b *Bot, msg *tgbotapi.Message, args []string) {
+func addKnowledgeFull(b *Bot, msg *tgbotapi.Message, knw knowledge) {
 	// @pechor, где лучше преобразовывать юзерИД? В каждой функции addKnowledge или передавать уже в неё как аргумент?
 }
 

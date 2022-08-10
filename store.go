@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
@@ -28,7 +29,13 @@ func (s *Store) IsExists(id string) (bool, error) {
 }
 
 func (s *Store) CreateKnowledge(ctx context.Context, id string, userID string, link string) error {
-	_, err := s.db.ExecContext(ctx, "INSERT OR IGNORE INTO knowledge(id, adder, link, timeAdded) VALUES ($1, $2, $3, $4)", id, userID, link, datetime.Now())
-
+	_, err := s.db.ExecContext(ctx, "INSERT OR IGNORE INTO knowledge(id, adder, link, timeAdded) VALUES ($1, $2, $3, $4)", id, userID, link, time.Now())
 	return errors.Wrap(err, "adding material")
 }
+
+func (s *Store) CreateKnowledgeFull(ctx context.Context, knowledge knowledge) error {
+	_, err := s.db.ExecContext(ctx, "INSERT OR IGNORE INTO knowledge(id, adder, link, timeAdded) VALUES ($1, $2, $3, $4)", knowledge.id, knowledge.adder, knowledge.link, time.Now(), knowledge.knowledgeType, knowledge.subtype, knowledge.theme, knowledge.sphere, knowledge.wordCount, knowledge.duration, knowledge.language)
+	return errors.Wrap(err, "adding material")
+}
+
+//@pechor, или лучше сделать одну функцию CreateKnowledge, которая принимает структуру и просто всё пихает в базу. Если будут null, so be it
