@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -142,8 +144,9 @@ func (b *Bot) add(msg *tgbotapi.Message) {
 }
 
 func parseKnowledge(text string) (knowledge, error) {
-	var knw knowledge = knowledge{
-		id:            uuid.New(),
+	var err error
+	var knw knowledge = knowledge{ //это чтобы мне было понятно. Пусть пока тут будет
+		id:            uuid.New(), //@pechor, лучше это делать тут (тут делать тупо как-то), в функции addKnowledgeFull \ addKnowledgeFast или вообще в функции в Store????????????
 		name:          "",
 		knowledgeType: "",
 		subtype:       "",
@@ -153,16 +156,99 @@ func parseKnowledge(text string) (knowledge, error) {
 		wordCount:     0,
 		duration:      0,
 		language:      ""}
-	return knw, nil
+
+	split := strings.Split(text, "\n")
+	for i, s := range split {
+		fmt.Println(i, s) //иначе он пишет, что i не используется, а мне и не надо её использовать лул
+		if strings.Contains(s, "http://") || strings.Contains(s, "https://") || strings.Contains(s, "www.") || strings.Contains(s, "Ссылка") || strings.Contains(s, "Link") {
+			a, ok := trimMeta([]string{"Ссылка", "Link"}, s)
+			if ok {
+				knw.link = a
+			} else {
+				err.Error() //хз что это
+			}
+		}
+		if strings.Contains(s, "Название") || strings.Contains(s, "Name") {
+			a, ok := trimMeta([]string{"Название", "Name"}, s)
+			if ok {
+				knw.name = a
+			} else {
+				err.Error() //хз что это
+			}
+		}
+		if strings.Contains(s, "Тема") || strings.Contains(s, "Theme") || strings.Contains(s, "Topic") {
+			a, ok := trimMeta([]string{"Тема", "Theme", "Topic"}, s)
+			if ok {
+				knw.theme = a
+			} else {
+				err.Error() //хз что это
+			}
+		}
+		if strings.Contains(s, "Сфера") || strings.Contains(s, "#") || strings.Contains(s, "Sphere") {
+			a, ok := trimMeta([]string{"Тема", "Theme", "Topic"}, s)
+			if ok {
+				knw.sphere = a
+			} else {
+				err.Error() //хз что это
+			}
+		}
+		if strings.Contains(s, "Тип") || strings.Contains(s, "Type") {
+			a, ok := trimMeta([]string{"Тип", "Type"}, s)
+			if ok {
+				knw.knowledgeType = a
+			} else {
+				err.Error() //хз что это
+			}
+		}
+		if strings.Contains(s, "Подтип") || strings.Contains(s, "Subtype") {
+			a, ok := trimMeta([]string{"Подтип", "Subtype"}, s)
+			if ok {
+				knw.subtype = a
+			} else {
+				err.Error() //хз что это
+			}
+		}
+		if strings.Contains(s, "Длительность") || strings.Contains(s, "Duration") {
+			a, ok := trimMeta([]string{"Длительность", "Duration"}, s)
+			if ok {
+				knw.duration, err = strconv.Atoi(a)
+			} else {
+				err.Error() //хз что это
+			}
+		}
+		if strings.Contains(s, "Количество слов") || strings.Contains(s, "Word Count") || strings.Contains(s, "Word") {
+			a, ok := trimMeta([]string{"Количество слов", "Word"}, s)
+			if ok {
+				knw.wordCount, err = strconv.Atoi(a)
+			} else {
+				err.Error() //хз что это
+			}
+		}
+
+	}
+
+	return knw, err
 }
 
-// Ссылка: https://www.linkedin.com/video/event/urn:li:ugcPost:6950083329849221120/
-// Название: Webinar: Importance of Market Research & Cognitive Design by Amazon Sr PM
-// Длительность: 10m
-// Сфера:
-// Тема:
-// Тип:
-// Подтип:
+func trimMeta(name []string, text string) (result string, ok bool) {
+	result = text
+	for i, s := range name {
+		if strings.Contains(text, s) {
+			fmt.Println(i, text, s)
+			result = strings.Trim(result, s)
+		}
+	}
+	result = strings.Trim(result, ": ")
+	// fmt.Print(strings.Trim("¡¡¡Hello, Gophers!!!", "!¡"))
+	// Output:
+	// Hello, Gophers
+
+	if !strings.Contains(result, " ") {
+		ok = true
+	}
+
+	return result, ok
+}
 
 //func addKnowledgeFull(b *Bot, msg *tgbotapi.Message, sphere string, name string, type string, subtype string, theme string, link string, wordCount string, duration string, language string) {
 func addKnowledgeFull(b *Bot, msg *tgbotapi.Message, knw knowledge) {
