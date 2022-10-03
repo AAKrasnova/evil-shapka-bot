@@ -1,3 +1,6 @@
 {
-"default_error_text": "Something went wrong, please try again later or contact @Rubella19"
+"default_error_text": "Something went wrong, please try again later or contact @Rubella19",
+"no_link_error_text": "Critical: No link",
+"invalid_duration_error_text": "Invalid value for DURATION. Specify number of minutes as integer without anything else", 
+"invalid_wordcount_error_text":"Invalid value for WORD COUNT. Specify number of words as integer without anything else"
 }

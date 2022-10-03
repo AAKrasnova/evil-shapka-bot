@@ -10,12 +10,38 @@ import (
 	"strings"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"github.com/pkg/errors"
 
 	"github.com/pechorka/uuid"
 )
 
+type ValueNames struct {
+	Name          []string
+	Link          []string
+	Theme         []string
+	Sphere        []string
+	KnowledgeType []string
+	Subtype       []string
+	Duration      []string
+	WordCount     []string
+}
+
+var names = ValueNames{
+	Name:          []string{"Название", "Name"},
+	Link:          []string{"Ссылка", "Link"},
+	Theme:         []string{"Тема", "Theme", "Topic"},
+	Sphere:        []string{"Сфера", "#", "Sphere"},
+	KnowledgeType: []string{"Тип", "Type"},
+	Subtype:       []string{"Подтип", "Subtype"},
+	Duration:      []string{"Длительность", "Duration"},
+	WordCount:     []string{"Количество слов", "Word Count", "Word", "Слов", "Words", "Слова"},
+}
+
 type texts struct {
-	DefaultErrorText string `json:"default_error_text"`
+	DefaultErrorText          string `json:"default_error_text"`
+	NoLinkErrorText           string `json:"no_link_error_text"`
+	InvalidDurationErrorText  string `json:"invalid_duration_error_text"`
+	InvalidWordCountErrorText string `json:"invalid_wordcount_error_text"`
 }
 
 type knowledge struct {
@@ -121,10 +147,10 @@ func (b *Bot) add(msg *tgbotapi.Message) {
 		if strings.Contains(text, " ") || strings.Contains(text, "\n") { //Это типа проверка на то, чтобы была только ссылка и ничего больше
 			b.reply(msg, "What do you want to do by "+text+", human?")
 		} else {
-			addKnowledgeFast(b, msg, text)
+			b.addKnowledgeFast(msg, text)
 		}
 	} else {
-		knw, err := parseKnowledge(text)
+		knw, err := b.parseKnowledge(text)
 		knw.adder = uuid.IntToUUID(msg.From.ID)
 
 		if err != nil {
@@ -143,7 +169,7 @@ func (b *Bot) add(msg *tgbotapi.Message) {
 	}
 }
 
-func parseKnowledge(text string) (knowledge, error) {
+func (b *Bot) parseKnowledge(text string) (knowledge, error) { //method creating struct KNOWLEDGE from user input
 	var err error
 	var knw knowledge = knowledge{ //это чтобы мне было понятно. Пусть пока тут будет
 		id:            uuid.New(), //@pechor, лучше это делать тут (тут делать тупо как-то), в функции addKnowledgeFull \ addKnowledgeFast или вообще в функции в Store????????????
@@ -159,69 +185,42 @@ func parseKnowledge(text string) (knowledge, error) {
 
 	split := strings.Split(text, "\n")
 	for i, s := range split {
-		fmt.Println(i, s) //иначе он пишет, что i не используется, а мне и не надо её использовать лул
-		if strings.Contains(s, "http://") || strings.Contains(s, "https://") || strings.Contains(s, "www.") || strings.Contains(s, "Ссылка") || strings.Contains(s, "Link") {
-			a, ok := trimMeta([]string{"Ссылка", "Link"}, s)
-			if ok {
+		fmt.Println(i, s) //иначе он пишет, что i не используется, а мне и не надо её использовать лул, @pechor, что делать?
+		if ContainsAny(s, "http://", "https://", "www.") || ContainsAny(s, names.Link...) {
+			a := trimMeta(names.Link, s)
+			if !strings.Contains(a, " ") {
 				knw.link = a
 			} else {
-				err.Error() //хз что это
+				return knowledge{}, errors.New(b.t.NoLinkErrorText)
 			}
 		}
-		if strings.Contains(s, "Название") || strings.Contains(s, "Name") {
-			a, ok := trimMeta([]string{"Название", "Name"}, s)
-			if ok {
-				knw.name = a
-			} else {
-				err.Error() //хз что это
+		if ContainsAny(s, names.Name...) {
+			knw.name = trimMeta(names.Name, s)
+		}
+		if ContainsAny(s, names.Theme...) {
+			knw.theme = trimMeta(names.Theme, s)
+		}
+		if ContainsAny(s, names.Sphere...) {
+			knw.sphere = trimMeta(names.Sphere, s)
+		}
+		if ContainsAny(s, names.KnowledgeType...) {
+			knw.knowledgeType = trimMeta(names.KnowledgeType, s)
+		}
+		if ContainsAny(s, names.Subtype...) {
+			knw.subtype = trimMeta(names.Subtype, s)
+		}
+		if ContainsAny(s, names.Duration...) {
+			a := trimMeta(names.Duration, s)
+			knw.duration, err = strconv.Atoi(a)
+			if err != nil {
+				return knowledge{}, errors.New(b.t.InvalidDurationErrorText) //TODO не падать, а закидывать нераспарсенное в заметки.
 			}
 		}
-		if strings.Contains(s, "Тема") || strings.Contains(s, "Theme") || strings.Contains(s, "Topic") {
-			a, ok := trimMeta([]string{"Тема", "Theme", "Topic"}, s)
-			if ok {
-				knw.theme = a
-			} else {
-				err.Error() //хз что это
-			}
-		}
-		if strings.Contains(s, "Сфера") || strings.Contains(s, "#") || strings.Contains(s, "Sphere") {
-			a, ok := trimMeta([]string{"Тема", "Theme", "Topic"}, s)
-			if ok {
-				knw.sphere = a
-			} else {
-				err.Error() //хз что это
-			}
-		}
-		if strings.Contains(s, "Тип") || strings.Contains(s, "Type") {
-			a, ok := trimMeta([]string{"Тип", "Type"}, s)
-			if ok {
-				knw.knowledgeType = a
-			} else {
-				err.Error() //хз что это
-			}
-		}
-		if strings.Contains(s, "Подтип") || strings.Contains(s, "Subtype") {
-			a, ok := trimMeta([]string{"Подтип", "Subtype"}, s)
-			if ok {
-				knw.subtype = a
-			} else {
-				err.Error() //хз что это
-			}
-		}
-		if strings.Contains(s, "Длительность") || strings.Contains(s, "Duration") {
-			a, ok := trimMeta([]string{"Длительность", "Duration"}, s)
-			if ok {
-				knw.duration, err = strconv.Atoi(a)
-			} else {
-				err.Error() //хз что это
-			}
-		}
-		if strings.Contains(s, "Количество слов") || strings.Contains(s, "Word Count") || strings.Contains(s, "Word") {
-			a, ok := trimMeta([]string{"Количество слов", "Word"}, s)
-			if ok {
-				knw.wordCount, err = strconv.Atoi(a)
-			} else {
-				err.Error() //хз что это
+		if ContainsAny(s, names.WordCount...) {
+			a := trimMeta([]string{"Количество слов", "Word"}, s)
+			knw.wordCount, err = strconv.Atoi(a)
+			if err != nil {
+				return knowledge{}, errors.New(b.t.InvalidWordCountErrorText) //TODO не падать, а закидывать нераспарсенное в заметки.
 			}
 		}
 
@@ -230,32 +229,48 @@ func parseKnowledge(text string) (knowledge, error) {
 	return knw, err
 }
 
-func trimMeta(name []string, text string) (result string, ok bool) {
+func ContainsAny(in string, contains ...string) bool {
+	for _, c := range contains {
+		if strings.Contains(in, c) {
+			return true
+		}
+	}
+	return false
+}
+
+func trimMeta(name []string, text string) (result string) { // method to delete meta information from line, such as "Name: XXXX" or "Name :XXX" or "XXXX - Name"
 	result = text
+	for _, s := range name {
+		name = append(name, strings.ToLower(s))
+	}
 	for i, s := range name {
 		if strings.Contains(text, s) {
 			fmt.Println(i, text, s)
-			result = strings.Trim(result, s)
+			//TODO - проверить, что то, что написал Сергей - не хуйня
+			// _, result, _ = strings.Cut(result, ":")
+			// if index := strings.LastIndex(result, "-"); index > 0 {
+			// 	result = result[:index]
+			// }
+			// result = strings.TrimSpace(result)
+			result = strings.TrimPrefix(result, s)
+			result = strings.TrimPrefix(result, ": ")
+			result = strings.TrimPrefix(result, " :")
+			result = strings.TrimPrefix(result, ":")
+			result = strings.TrimSuffix(result, s)
+			result = strings.TrimSuffix(result, " - ")
+			result = strings.TrimSuffix(result, "- ")
+			result = strings.TrimSuffix(result, " ")
 		}
 	}
-	result = strings.Trim(result, ": ")
-	// fmt.Print(strings.Trim("¡¡¡Hello, Gophers!!!", "!¡"))
-	// Output:
-	// Hello, Gophers
-
-	if !strings.Contains(result, " ") {
-		ok = true
-	}
-
-	return result, ok
+	return result
 }
 
 //func addKnowledgeFull(b *Bot, msg *tgbotapi.Message, sphere string, name string, type string, subtype string, theme string, link string, wordCount string, duration string, language string) {
 func addKnowledgeFull(b *Bot, msg *tgbotapi.Message, knw knowledge) {
-	// @pechor, где лучше преобразовывать юзерИД? В каждой функции addKnowledge или передавать уже в неё как аргумент?
+	//TODO @pechor, где лучше преобразовывать юзерИД? В каждой функции addKnowledge или передавать уже в неё как аргумент?
 }
 
-func addKnowledgeFast(b *Bot, msg *tgbotapi.Message, link string) {
+func (b *Bot) addKnowledgeFast(msg *tgbotapi.Message, link string) {
 	userID := uuid.IntToUUID(msg.From.ID)
 	userExists, _err := b.s.IsExists(userID)
 	if _err == nil {
