@@ -33,8 +33,8 @@ var names = ValueNames{
 	Sphere:        []string{"Сфера", "#", "Sphere"},
 	KnowledgeType: []string{"Тип", "Type"},
 	Subtype:       []string{"Подтип", "Subtype"},
-	Duration:      []string{"Длительность", "Duration"},
-	WordCount:     []string{"Количество слов", "Word Count", "Word", "Слов", "Words", "Слова"},
+	Duration:      []string{"Длительность", "Duration", "Minutes", "Minute", "Min", "M", "Минуты", "Минута", "Минут", "Мин", "М"}, //it's important that they go from longest word to shortest. elseway breaks TrimMeta
+	WordCount:     []string{"Количество слов", "Word Count", "Word", "Слов", "Words", "Слова", "Слово"},
 }
 
 type texts struct {
@@ -252,6 +252,7 @@ func trimMeta(name []string, text string) (result string) { // method to delete 
 			// 	result = result[:index]
 			// }
 			// result = strings.TrimSpace(result)
+			result = strings.TrimSpace(result)
 			result = strings.TrimPrefix(result, s)
 			result = strings.TrimPrefix(result, ": ")
 			result = strings.TrimPrefix(result, " :")
@@ -259,9 +260,11 @@ func trimMeta(name []string, text string) (result string) { // method to delete 
 			result = strings.TrimSuffix(result, s)
 			result = strings.TrimSuffix(result, " - ")
 			result = strings.TrimSuffix(result, "- ")
-			result = strings.TrimSuffix(result, " ")
+			result = strings.TrimSuffix(result, " -")
+			result = strings.TrimSpace(result)
 		}
 	}
+	//TODO Убрать кавычки в оставшемся результате, см.  "case 3.1" в тестах функции
 	return result
 }
 
