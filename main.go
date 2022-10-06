@@ -13,6 +13,7 @@ import (
 
 type config struct {
 	TgToken string `json:"tg_token"`
+	Local   bool   `json:"local"`
 }
 
 func readCfg(path string) (*config, error) {
@@ -39,6 +40,16 @@ func run() error {
 	cfg, err := readCfg("./cfg.json")
 	if err != nil {
 		return err
+	}
+
+	if !cfg.Local {
+		logFile, err := os.OpenFile("logs.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, os.ModePerm)
+		if err != nil {
+			return err
+		}
+		defer logFile.Close()
+
+		log.SetOutput(logFile)
 	}
 
 	rawDB, err := sql.Open("sqlite3", "reminder.db")

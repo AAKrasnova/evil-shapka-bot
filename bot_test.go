@@ -113,17 +113,7 @@ func Test_trimMeta(t *testing.T) {
 		},
 		{
 			name:       "case 6.1",
-			args:       args{name: names.Duration, text: "5мин"},
-			wantResult: "5",
-		},
-		{
-			name:       "case 6.2",
-			args:       args{name: names.Duration, text: "минуты10"},
-			wantResult: "10",
-		},
-		{
-			name:       "case 6.3",
-			args:       args{name: names.Duration, text: "Duration пять минут"},
+			args:       args{name: names.Duration, text: "Duration пять"},
 			wantResult: "пять",
 		},
 	}
@@ -131,6 +121,50 @@ func Test_trimMeta(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			gotResult := trimMeta(tt.args.name, tt.args.text)
 			require.Equal(t, tt.wantResult, gotResult)
+		})
+	}
+}
+
+func TestBot_parseKnowledge(t *testing.T) {
+	tests := []struct {
+		name    string
+		text    string
+		want    knowledge
+		wantErr bool
+	}{
+		{
+			name: "case 6.3",
+			text: `/add https://www.linkedin.com/video/event/urn:li:ugcPost:6950083329849221120/
+			duration 5`,
+			want: knowledge{
+				id:            "",
+				adder:         "",
+				knowledgeType: "",
+				subtype:       "",
+				theme:         "",
+				sphere:        "",
+				link:          "https://www.linkedin.com/video/event/urn:li:ugcPost:6950083329849221120/",
+				wordCount:     0,
+				duration:      5,
+				language:      "",
+			},
+			wantErr: false,
+		},
+	}
+	cms, err := readCMS("./cms.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := Bot{t: cms}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := b.parseKnowledge(tt.text)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tt.want, got)
 		})
 	}
 }

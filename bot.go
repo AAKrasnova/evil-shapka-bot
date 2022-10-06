@@ -33,7 +33,7 @@ var names = ValueNames{
 	Sphere:        []string{"Сфера", "#", "Sphere"},
 	KnowledgeType: []string{"Тип", "Type"},
 	Subtype:       []string{"Подтип", "Subtype"},
-	Duration:      []string{"Длительность", "Duration", "Minutes", "Minute", "Min", "M", "Минуты", "Минута", "Минут", "Мин", "М"}, //it's important that they go from longest word to shortest. elseway breaks TrimMeta
+	Duration:      []string{"Длительность", "Duration"},
 	WordCount:     []string{"Количество слов", "Word Count", "Word", "Слов", "Words", "Слова", "Слово"},
 }
 
@@ -139,40 +139,29 @@ func (b *Bot) start(msg *tgbotapi.Message) {
 }
 
 func (b *Bot) add(msg *tgbotapi.Message) {
-	text := strings.TrimSpace(strings.TrimPrefix(msg.Text, "/add "))
-	// text := msg.CommandArguments() - для команд, которые настоящие команды, а не которые пустую команду берут
+	knw, err := b.parseKnowledge(msg.Text)
+	if err != nil {
+		log.Println("error while parsing knowledge", err)
+		b.reply(msg, "failed to parse knowledge: "+err.Error())
+		return
+	}
+	knw.adder = uuid.IntToUUID(msg.From.ID)
 
-	/* Если пользователь прислал только ссылку */
-	if strings.HasPrefix(text, "http://") || strings.HasPrefix(text, "https://") {
-		if strings.Contains(text, " ") || strings.Contains(text, "\n") { //Это типа проверка на то, чтобы была только ссылка и ничего больше
-			b.reply(msg, "What do you want to do by "+text+", human?")
-		} else {
-			b.addKnowledgeFast(msg, text)
-		}
-	} else {
-		knw, err := b.parseKnowledge(text)
-		knw.adder = uuid.IntToUUID(msg.From.ID)
-
-		if err != nil {
-			log.Println("error while parsing knowledge", err)
-			b.reply(msg, "failed to parse knowledge: "+err.Error())
-			return
-		}
-
-		addKnowledgeFull(b, msg, knw)
-		switch err {
-		case nil:
-			b.reply(msg, "task added")
-		default:
-			b.reply(msg, "failed to add task: "+err.Error())
-		}
+	addKnowledgeFull(b, msg, knw)
+	switch err {
+	case nil:
+		b.reply(msg, "thing added")
+	default:
+		b.reply(msg, "failed to add thing: "+err.Error())
 	}
 }
 
 func (b *Bot) parseKnowledge(text string) (knowledge, error) { //method creating struct KNOWLEDGE from user input
+	text = strings.TrimSpace(strings.TrimPrefix(text, "/add"))
+	// text := msg.CommandArguments() - для команд, которые настоящие команды, а не которые пустую команду берут
 	var err error
 	var knw knowledge = knowledge{ //это чтобы мне было понятно. Пусть пока тут будет
-		id:            uuid.New(), //@pechor, лучше это делать тут (тут делать тупо как-то), в функции addKnowledgeFull \ addKnowledgeFast или вообще в функции в Store????????????
+		// id:            uuid.New(), //@pechor, лучше это делать тут (тут делать тупо как-то), в функции addKnowledgeFull \ addKnowledgeFast или вообще в функции в Store????????????
 		name:          "",
 		knowledgeType: "",
 		subtype:       "",
@@ -184,8 +173,8 @@ func (b *Bot) parseKnowledge(text string) (knowledge, error) { //method creating
 		language:      ""}
 
 	split := strings.Split(text, "\n")
-	for i, s := range split {
-		fmt.Println(i, s) //иначе он пишет, что i не используется, а мне и не надо её использовать лул, @pechor, что делать?
+	for _, s := range split {
+		s = strings.TrimSpace(s)
 		if ContainsAny(s, "http://", "https://", "www.") || ContainsAny(s, names.Link...) {
 			a := trimMeta(names.Link, s)
 			if !strings.Contains(a, " ") {
@@ -213,11 +202,12 @@ func (b *Bot) parseKnowledge(text string) (knowledge, error) { //method creating
 			a := trimMeta(names.Duration, s)
 			knw.duration, err = strconv.Atoi(a)
 			if err != nil {
+				log.Println("parsing error: ", err, "full line", s)
 				return knowledge{}, errors.New(b.t.InvalidDurationErrorText) //TODO не падать, а закидывать нераспарсенное в заметки.
 			}
 		}
 		if ContainsAny(s, names.WordCount...) {
-			a := trimMeta([]string{"Количество слов", "Word"}, s)
+			a := trimMeta(names.WordCount, s)
 			knw.wordCount, err = strconv.Atoi(a)
 			if err != nil {
 				return knowledge{}, errors.New(b.t.InvalidWordCountErrorText) //TODO не падать, а закидывать нераспарсенное в заметки.
@@ -230,12 +220,20 @@ func (b *Bot) parseKnowledge(text string) (knowledge, error) { //method creating
 }
 
 func ContainsAny(in string, contains ...string) bool {
-	for _, c := range contains {
-		if strings.Contains(in, c) {
-			return true
+	f := func(containsAllCase ...string) bool {
+		for _, c := range containsAllCase {
+			if strings.HasPrefix(in, c) || strings.HasSuffix(in, c) {
+				return true
+			}
 		}
+		return false
 	}
-	return false
+
+	for _, c := range contains {
+		contains = append(contains, strings.ToLower(c), strings.ToUpper(c))
+	}
+
+	return f(contains...)
 }
 
 func trimMeta(name []string, text string) (result string) { // method to delete meta information from line, such as "Name: XXXX" or "Name :XXX" or "XXXX - Name"
