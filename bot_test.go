@@ -133,11 +133,23 @@ func TestBot_parseKnowledge(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "case 6.3",
+			name: "Link+Duration with /add command same line",
 			text: `/add https://www.linkedin.com/video/event/urn:li:ugcPost:6950083329849221120/
 			duration 5`,
 			want: knowledge{
+				link:     "https://www.linkedin.com/video/event/urn:li:ugcPost:6950083329849221120/",
+				duration: 5,
+			},
+			wantErr: false,
+		},
+		{
+			name: "Link+Duration /add separetely",
+			text: `/add 
+			https://www.linkedin.com/video/event/urn:li:ugcPost:6950083329849221120/
+			ДЛИТЕЛЬНОСТЬ 14`,
+			want: knowledge{
 				id:            "",
+				name:          "",
 				adder:         "",
 				knowledgeType: "",
 				subtype:       "",
@@ -145,8 +157,130 @@ func TestBot_parseKnowledge(t *testing.T) {
 				sphere:        "",
 				link:          "https://www.linkedin.com/video/event/urn:li:ugcPost:6950083329849221120/",
 				wordCount:     0,
-				duration:      5,
-				language:      "",
+				duration:      14,
+			},
+			wantErr: false,
+		},
+		{
+			name: "Link+Duration /add separetely",
+			text: `/add 
+			Ссылка: https://www.linkedin.com/video/event/urn:li:ugcPost:6950083329849221120/
+			duration 16`,
+			want: knowledge{
+				id:            "",
+				name:          "",
+				adder:         "",
+				knowledgeType: "",
+				subtype:       "",
+				theme:         "",
+				sphere:        "",
+				link:          "https://www.linkedin.com/video/event/urn:li:ugcPost:6950083329849221120/",
+				wordCount:     0,
+				duration:      16,
+			},
+			wantErr: false,
+		},
+		{
+			name: "Solo Link",
+			text: `https://www.youtube.com/watch?v=HGQdOX7L65o`,
+			want: knowledge{
+				id:            "",
+				name:          "",
+				adder:         "",
+				knowledgeType: "",
+				subtype:       "",
+				theme:         "",
+				sphere:        "",
+				link:          "https://www.youtube.com/watch?v=HGQdOX7L65o",
+				wordCount:     0,
+				duration:      0,
+			},
+			wantErr: false,
+		},
+		{
+			name: "Solo Link with add command",
+			text: `/add https://www.linkedin.com/video/event/urn:li:ugcPost:6950083329849221120/`,
+			want: knowledge{
+				id:            "",
+				name:          "",
+				adder:         "",
+				knowledgeType: "",
+				subtype:       "",
+				theme:         "",
+				sphere:        "",
+				link:          "https://www.linkedin.com/video/event/urn:li:ugcPost:6950083329849221120/",
+				wordCount:     0,
+				duration:      0,
+			},
+			wantErr: false,
+		},
+		{
+			name: "Lots of stuff without  add command",
+			text: `Ссылка: https://www.linkedin.com/video/event/urn:li:ugcPost:6950083329849221120/
+			Название: Webinar: Importance of Market Research & Cognitive Design by Amazon Sr PM
+			Длительность: 10
+			Тема: Market Research
+			Тип: Video
+			Подтип: Webinar
+			Сфера: PM`,
+			want: knowledge{
+				id:            "",
+				name:          "Webinar: Importance of Market Research & Cognitive Design by Amazon Sr PM",
+				adder:         "",
+				knowledgeType: "Video",
+				subtype:       "Webinar",
+				theme:         "Market Research",
+				sphere:        "PM",
+				link:          "https://www.linkedin.com/video/event/urn:li:ugcPost:6950083329849221120/",
+				wordCount:     0,
+				duration:      10,
+			},
+			wantErr: false,
+		},
+		{
+			name: "Lots of stuff with add command same line",
+			text: `/add Ссылка: https://www.linkedin.com/video/event/urn:li:ugcPost:6950083329849221120/
+			Название: Webinar: Importance of Market Research & Cognitive Design by Amazon Sr PM
+			Длительность: 10
+			Тема: Market Research
+			Тип: Video
+			Подтип: Webinar
+			Сфера: PM`,
+			want: knowledge{
+				id:            "",
+				name:          "Webinar: Importance of Market Research & Cognitive Design by Amazon Sr PM",
+				adder:         "",
+				knowledgeType: "Video",
+				subtype:       "Webinar",
+				theme:         "Market Research",
+				sphere:        "PM",
+				link:          "https://www.linkedin.com/video/event/urn:li:ugcPost:6950083329849221120/",
+				wordCount:     0,
+				duration:      10,
+			},
+			wantErr: false,
+		},
+		{
+			name: "Lots of stuff with add command separate line",
+			text: `/add 
+			Ссылка: https://www.linkedin.com/video/event/urn:li:ugcPost:6950083329849221120/
+			Название: Webinar: Importance of Market Research & Cognitive Design by Amazon Sr PM
+			Длительность: 10
+			Тема: Market Research
+			Тип: Video
+			Подтип: Webinar
+			Сфера: PM`,
+			want: knowledge{
+				id:            "",
+				name:          "Webinar: Importance of Market Research & Cognitive Design by Amazon Sr PM",
+				adder:         "",
+				knowledgeType: "Video",
+				subtype:       "Webinar",
+				theme:         "Market Research",
+				sphere:        "PM",
+				link:          "https://www.linkedin.com/video/event/urn:li:ugcPost:6950083329849221120/",
+				wordCount:     0,
+				duration:      10,
 			},
 			wantErr: false,
 		},

@@ -56,8 +56,11 @@ type knowledge struct {
 	link          string
 	wordCount     int
 	duration      int
-	language      string
+	//language      string
 	// deleted       bool
+	//notes 	string
+	//file
+	//tags []string
 }
 
 func readCMS(path string) (*texts, error) {
@@ -101,10 +104,20 @@ func (b *Bot) Run() error {
 	u.Timeout = 60
 
 	updates := b.bot.GetUpdatesChan(u)
+
 	for update := range updates {
 		msg := update.Message
 		if msg == nil {
 			continue
+		}
+
+		//@pechor, Это нормально, что мы создаём пользователя по сути до старта..?
+		userID := uuid.IntToUUID(msg.From.ID)
+		userExists, _err := b.s.IsExists(userID)
+		if _err == nil {
+			if !userExists {
+				createUser(b, msg)
+			}
 		}
 
 		switch msg.Command() {
@@ -120,22 +133,26 @@ func (b *Bot) Run() error {
 }
 
 func (b *Bot) start(msg *tgbotapi.Message) {
-	log.Printf("[%s] %s", msg.From.UserName, msg.Text)
+	//@pechor, раз мы запихнули создание пользователя в Run(), то нам тогда тут не надо его создавать, верно? и вот это всё надо бы удалить =>
 
-	userID := uuid.IntToUUID(msg.From.ID)
-	userTgID := msg.From.ID
-	userTgName := msg.From.UserName
-	userTgFirstName := msg.From.FirstName
-	userTgLastName := msg.From.LastName
-	userTgLang := msg.From.LanguageCode
+	// log.Printf("[%s] %s", msg.From.UserName, msg.Text)
 
-	log.Printf("user id %q, tgName %q, name %q %q, lang %q", userID, userTgName, userTgFirstName, userTgLastName, userTgLang)
+	// userID := uuid.IntToUUID(msg.From.ID)
+	// userTgID := msg.From.ID
+	// userTgName := msg.From.UserName
+	// userTgFirstName := msg.From.FirstName
+	// userTgLastName := msg.From.LastName
+	// userTgLang := msg.From.LanguageCode
 
-	err := b.s.CreateUser(context.TODO(), userID, userTgID, userTgName, userTgFirstName, userTgLastName, userTgLang)
-	if err != nil {
-		log.Println("error while creating user", err)
-		b.reply(msg, b.t.DefaultErrorText)
-	}
+	// log.Printf("user id %q, tgName %q, name %q %q, lang %q", userID, userTgName, userTgFirstName, userTgLastName, userTgLang)
+
+	// err := b.s.CreateUser(context.TODO(), userID, userTgID, userTgName, userTgFirstName, userTgLastName, userTgLang)
+	// if err != nil {
+	// 	log.Println("error while creating user", err)
+	// 	b.reply(msg, b.t.DefaultErrorText)
+	// }
+
+	b.reply(msg, "Hello, human")
 }
 
 func (b *Bot) add(msg *tgbotapi.Message) {
@@ -147,7 +164,7 @@ func (b *Bot) add(msg *tgbotapi.Message) {
 	}
 	knw.adder = uuid.IntToUUID(msg.From.ID)
 
-	addKnowledgeFull(b, msg, knw)
+	addKnowledge(b, msg, knw)
 	switch err {
 	case nil:
 		b.reply(msg, "thing added")
@@ -160,17 +177,7 @@ func (b *Bot) parseKnowledge(text string) (knowledge, error) { //method creating
 	text = strings.TrimSpace(strings.TrimPrefix(text, "/add"))
 	// text := msg.CommandArguments() - для команд, которые настоящие команды, а не которые пустую команду берут
 	var err error
-	var knw knowledge = knowledge{ //это чтобы мне было понятно. Пусть пока тут будет
-		// id:            uuid.New(), //@pechor, лучше это делать тут (тут делать тупо как-то), в функции addKnowledgeFull \ addKnowledgeFast или вообще в функции в Store????????????
-		name:          "",
-		knowledgeType: "",
-		subtype:       "",
-		theme:         "",
-		sphere:        "",
-		link:          "",
-		wordCount:     0,
-		duration:      0,
-		language:      ""}
+	var knw knowledge = knowledge{}
 
 	split := strings.Split(text, "\n")
 	for _, s := range split {
@@ -180,7 +187,7 @@ func (b *Bot) parseKnowledge(text string) (knowledge, error) { //method creating
 			if !strings.Contains(a, " ") {
 				knw.link = a
 			} else {
-				return knowledge{}, errors.New(b.t.NoLinkErrorText)
+				return knowledge{}, errors.New(b.t.NoLinkErrorText) //TODO: подумать, может быть можно добавлять материалы без ссылок..?
 			}
 		}
 		if ContainsAny(s, names.Name...) {
@@ -219,7 +226,7 @@ func (b *Bot) parseKnowledge(text string) (knowledge, error) { //method creating
 	return knw, err
 }
 
-func ContainsAny(in string, contains ...string) bool {
+func ContainsAny(in string, contains ...string) bool { // function to check if there is something from array of strings in the beggining or end of text
 	f := func(containsAllCase ...string) bool {
 		for _, c := range containsAllCase {
 			if strings.HasPrefix(in, c) || strings.HasSuffix(in, c) {
@@ -239,7 +246,7 @@ func ContainsAny(in string, contains ...string) bool {
 func trimMeta(name []string, text string) (result string) { // method to delete meta information from line, such as "Name: XXXX" or "Name :XXX" or "XXXX - Name"
 	result = text
 	for _, s := range name {
-		name = append(name, strings.ToLower(s))
+		name = append(name, strings.ToLower(s), strings.ToUpper(s))
 	}
 	for i, s := range name {
 		if strings.Contains(text, s) {
@@ -266,24 +273,9 @@ func trimMeta(name []string, text string) (result string) { // method to delete 
 	return result
 }
 
-//func addKnowledgeFull(b *Bot, msg *tgbotapi.Message, sphere string, name string, type string, subtype string, theme string, link string, wordCount string, duration string, language string) {
-func addKnowledgeFull(b *Bot, msg *tgbotapi.Message, knw knowledge) {
-	//TODO @pechor, где лучше преобразовывать юзерИД? В каждой функции addKnowledge или передавать уже в неё как аргумент?
-}
-
-func (b *Bot) addKnowledgeFast(msg *tgbotapi.Message, link string) {
-	userID := uuid.IntToUUID(msg.From.ID)
-	userExists, _err := b.s.IsExists(userID)
-	if _err == nil {
-		if !userExists {
-			createUser(b, msg)
-		}
-	}
-
-	knowledgeID := uuid.New()
-	log.Printf("user id %q, link %q", userID, link)
-
-	err := b.s.CreateKnowledge(context.TODO(), knowledgeID, userID, link)
+func addKnowledge(b *Bot, msg *tgbotapi.Message, knw knowledge) {
+	// log.Printf("user id %q, link %q", userID, link)
+	err := b.s.CreateKnowledge(context.TODO(), knw)
 	if err != nil {
 		log.Println("error while creating knowledge", err)
 		b.reply(msg, b.t.DefaultErrorText)

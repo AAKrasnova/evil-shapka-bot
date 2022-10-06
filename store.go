@@ -6,6 +6,8 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
+
+	"github.com/pechorka/uuid"
 )
 
 type Store struct {
@@ -28,14 +30,9 @@ func (s *Store) IsExists(id string) (bool, error) {
 	return e, errors.Wrap(err, "seeking user")
 }
 
-func (s *Store) CreateKnowledge(ctx context.Context, id string, userID string, link string) error {
-	_, err := s.db.ExecContext(ctx, "INSERT OR IGNORE INTO knowledge(id, adder, link, timeAdded) VALUES ($1, $2, $3, $4)", id, userID, link, time.Now())
-	return errors.Wrap(err, "adding material")
+func (s *Store) CreateKnowledge(ctx context.Context, knowledge knowledge) error {
+	_, err := s.db.ExecContext(ctx, "INSERT OR IGNORE INTO knowledge(id, adder, link, name, timeAdded, type, subtype, theme, sphere, word_count, duration) VALUES ($1, $2, $3, $4, $5, $6, $7, $8,$9, $10)",
+		uuid.New(), knowledge.adder, knowledge.link, knowledge.name, time.Now(), knowledge.knowledgeType, knowledge.subtype, knowledge.theme, knowledge.sphere,
+		knowledge.wordCount, knowledge.duration)
+	return errors.Wrap(err, "adding material to db")
 }
-
-func (s *Store) CreateKnowledgeFull(ctx context.Context, knowledge knowledge) error {
-	_, err := s.db.ExecContext(ctx, "INSERT OR IGNORE INTO knowledge(id, adder, link, timeAdded) VALUES ($1, $2, $3, $4)", knowledge.id, knowledge.adder, knowledge.link, time.Now(), knowledge.knowledgeType, knowledge.subtype, knowledge.theme, knowledge.sphere, knowledge.wordCount, knowledge.duration, knowledge.language)
-	return errors.Wrap(err, "adding material")
-}
-
-//@pechor, или лучше сделать одну функцию CreateKnowledge, которая принимает структуру и просто всё пихает в базу. Если будут null, so be it
