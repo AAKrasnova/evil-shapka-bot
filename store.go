@@ -31,7 +31,7 @@ func (s *Store) IsExists(id string) (bool, error) {
 }
 
 func (s *Store) CreateKnowledge(ctx context.Context, knowledge knowledge) error {
-	_, err := s.db.ExecContext(ctx, "INSERT OR IGNORE INTO knowledge(id, adder, link, name, timeAdded, type, subtype, theme, sphere, word_count, duration) VALUES ($1, $2, $3, $4, $5, $6, $7, $8,$9, $10)",
+	_, err := s.db.ExecContext(ctx, "INSERT OR IGNORE INTO knowledge(id, adder, link, name, timeAdded, type, subtype, theme, sphere, word_count, duration) VALUES ($1, $2, $3, $4, $5, $6, $7, $8,$9, $10, $11)",
 		uuid.New(), knowledge.adder, knowledge.link, knowledge.name, time.Now(), knowledge.knowledgeType, knowledge.subtype, knowledge.theme, knowledge.sphere,
 		knowledge.wordCount, knowledge.duration)
 	return errors.Wrap(err, "adding material to db")
