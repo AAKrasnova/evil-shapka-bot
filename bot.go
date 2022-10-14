@@ -15,6 +15,10 @@ import (
 	"github.com/pechorka/uuid"
 )
 
+/*==================
+USEFUL VALUES
+===================*/
+
 type ValueNames struct {
 	Name          []string
 	Link          []string
@@ -37,11 +41,20 @@ var names = ValueNames{
 	WordCount:     []string{"Количество слов", "Word Count", "Word", "Слов", "Words", "Слова", "Слово"},
 }
 
+/*==================
+CMS
+===================*/
+
 type texts struct {
 	DefaultErrorText          string `json:"default_error_text"`
 	NoLinkErrorText           string `json:"no_link_error_text"`
 	InvalidDurationErrorText  string `json:"invalid_duration_error_text"`
 	InvalidWordCountErrorText string `json:"invalid_wordcount_error_text"`
+	StartDialogue             string `json:"start_dialogue"`
+	FailedToParseKnowledge    string `json:"failed_parse_knowledge"`
+	SuccessfullyAdded         string `json:"successfully_added"`
+	FailedAddingKnowledge     string `json:"failed_adding_knowlegde"`
+	FailedCreatingUser        string `json:"failed_creating_user"`
 }
 
 type knowledge struct {
@@ -77,6 +90,10 @@ func readCMS(path string) (*texts, error) {
 	return &c, nil
 }
 
+/*==================
+TELEGRAM BOT
+===================*/
+
 type Bot struct {
 	s   *Store
 	bot *tgbotapi.BotAPI
@@ -111,14 +128,7 @@ func (b *Bot) Run() error {
 			continue
 		}
 
-		//@pechor, Это нормально, что мы создаём пользователя по сути до старта..?
-		userID := uuid.IntToUUID(msg.From.ID)
-		userExists, _err := b.s.IsExists(userID)
-		if _err == nil {
-			if !userExists {
-				createUser(b, msg)
-			}
-		}
+		b.ensureUserExists(msg)
 
 		switch msg.Command() {
 		case "add":
@@ -132,44 +142,29 @@ func (b *Bot) Run() error {
 	return nil
 }
 
+/*==================
+TELEGRAM BOT: COMMANDS
+===================*/
 func (b *Bot) start(msg *tgbotapi.Message) {
-	//@pechor, раз мы запихнули создание пользователя в Run(), то нам тогда тут не надо его создавать, верно? и вот это всё надо бы удалить =>
-
-	// log.Printf("[%s] %s", msg.From.UserName, msg.Text)
-
-	// userID := uuid.IntToUUID(msg.From.ID)
-	// userTgID := msg.From.ID
-	// userTgName := msg.From.UserName
-	// userTgFirstName := msg.From.FirstName
-	// userTgLastName := msg.From.LastName
-	// userTgLang := msg.From.LanguageCode
-
-	// log.Printf("user id %q, tgName %q, name %q %q, lang %q", userID, userTgName, userTgFirstName, userTgLastName, userTgLang)
-
-	// err := b.s.CreateUser(context.TODO(), userID, userTgID, userTgName, userTgFirstName, userTgLastName, userTgLang)
-	// if err != nil {
-	// 	log.Println("error while creating user", err)
-	// 	b.reply(msg, b.t.DefaultErrorText)
-	// }
-
-	b.reply(msg, "Hello, human")
+	b.reply(msg, b.t.StartDialogue)
 }
 
+/*KNOWLEDGE MANAGEMENT*/
 func (b *Bot) add(msg *tgbotapi.Message) {
 	knw, err := b.parseKnowledge(msg.Text)
 	if err != nil {
 		log.Println("error while parsing knowledge", err)
-		b.reply(msg, "failed to parse knowledge: "+err.Error())
+		b.reply(msg, b.t.FailedToParseKnowledge+": "+err.Error())
 		return
 	}
 	knw.adder = uuid.IntToUUID(msg.From.ID)
 
-	addKnowledge(b, msg, knw)
-	switch err {
-	case nil:
-		b.reply(msg, "thing added")
-	default:
-		b.reply(msg, "failed to add thing: "+err.Error())
+	err = b.s.CreateKnowledge(context.TODO(), knw)
+	if err != nil {
+		log.Println("error while creating knowledge", err)
+		b.reply(msg, b.t.FailedAddingKnowledge)
+	} else {
+		b.reply(msg, b.t.SuccessfullyAdded)
 	}
 }
 
@@ -226,6 +221,39 @@ func (b *Bot) parseKnowledge(text string) (knowledge, error) { //method creating
 	return knw, err
 }
 
+/*==================
+MAJOR SUPPORTING FUNCTIONS
+===================*/
+
+func (b *Bot) ensureUserExists(msg *tgbotapi.Message) {
+	userID := uuid.IntToUUID(msg.From.ID)
+
+	userTgID := msg.From.ID
+	userTgName := msg.From.UserName
+	userTgFirstName := msg.From.FirstName
+	userTgLastName := msg.From.LastName
+	userTgLang := msg.From.LanguageCode
+	err := b.s.CreateUser(context.TODO(), userID, userTgID, userTgName, userTgFirstName, userTgLastName, userTgLang)
+	if err != nil {
+		log.Println("error while creating user", err)
+		b.reply(msg, b.t.FailedCreatingUser)
+	}
+}
+
+func (b *Bot) reply(to *tgbotapi.Message, text string) {
+	msg := tgbotapi.NewMessage(to.Chat.ID, text)
+	msg.ReplyToMessageID = to.MessageID
+
+	_, err := b.bot.Send(msg)
+	if err != nil {
+		log.Println("error while sending message: ", err)
+	}
+}
+
+/*==================
+LITTLE HELPER FUNCTIONS
+===================*/
+/*KNOWLEDGE MANAGEMENT*/
 func ContainsAny(in string, contains ...string) bool { // function to check if there is something from array of strings in the beggining or end of text
 	f := func(containsAllCase ...string) bool {
 		for _, c := range containsAllCase {
@@ -271,45 +299,4 @@ func trimMeta(name []string, text string) (result string) { // method to delete 
 	}
 	//TODO Убрать кавычки в оставшемся результате, см.  "case 3.1" в тестах функции
 	return result
-}
-
-func addKnowledge(b *Bot, msg *tgbotapi.Message, knw knowledge) {
-	// log.Printf("user id %q, link %q", userID, link)
-	err := b.s.CreateKnowledge(context.TODO(), knw)
-	if err != nil {
-		log.Println("error while creating knowledge", err)
-		b.reply(msg, b.t.DefaultErrorText)
-	} else {
-		b.reply(msg, "Успешно добавлено!")
-	}
-}
-
-func createUser(b *Bot, msg *tgbotapi.Message) {
-	userID := uuid.IntToUUID(msg.From.ID)
-
-	userExists, _err := b.s.IsExists(userID)
-	if _err == nil {
-		if !userExists {
-			userTgID := msg.From.ID
-			userTgName := msg.From.UserName
-			userTgFirstName := msg.From.FirstName
-			userTgLastName := msg.From.LastName
-			userTgLang := msg.From.LanguageCode
-			err := b.s.CreateUser(context.TODO(), userID, userTgID, userTgName, userTgFirstName, userTgLastName, userTgLang)
-			if err != nil {
-				log.Println("error while creating user", err)
-				b.reply(msg, b.t.DefaultErrorText)
-			}
-		}
-	}
-}
-
-func (b *Bot) reply(to *tgbotapi.Message, text string) {
-	msg := tgbotapi.NewMessage(to.Chat.ID, text)
-	msg.ReplyToMessageID = to.MessageID
-
-	_, err := b.bot.Send(msg)
-	if err != nil {
-		log.Println("error while sending message: ", err)
-	}
 }

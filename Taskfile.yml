@@ -13,5 +13,9 @@ tasks:
   
   bot:
     cmds:
-      - go build -o bot.exe
-      - .\bot.exe
+      - go install
+      - studyreminder.exe
+  
+  test:
+    cmds:
+      - go test ./...
