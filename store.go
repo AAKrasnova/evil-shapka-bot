@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -22,19 +21,34 @@ func NewStore(db *sqlx.DB) *Store {
 USER MANAGEMENT
 ===================*/
 
-func (s *Store) CreateUser(ctx context.Context, id string, tg_id int64, tg_username string, tg_first_name string, tg_last_name string, tg_language string) error {
-	_, err := s.db.ExecContext(ctx, "INSERT OR IGNORE INTO users(id, tg_id, tg_username, tg_first_name, tg_last_name, tg_language) VALUES ($1, $2, $3, $4, $5, $6)", id, tg_id, tg_username, tg_first_name, tg_last_name, tg_language)
+func (s *Store) CreateUser(user user) (string, error) {
+	idForCreating := uuid.New()
+	_, err := s.db.Exec("INSERT OR IGNORE INTO users(id, tg_id, tg_username, tg_first_name, tg_last_name, tg_language) VALUES ($1, $2, $3, $4, $5, $6)", idForCreating, user.TGID, user.TGUsername, user.TGFirstName, user.TGLastName, user.TGLanguage)
 
-	return errors.Wrap(err, "Creating user in db")
+	return idForCreating, errors.Wrap(err, "Creating user in db")
+}
+
+func (s *Store) getUserById(id string) (user, error) {
+	usr := user{}
+	err := s.db.Get(&usr, "SELECT * FROM users WHERE id=$1", id)
+	return usr, err
 }
 
 /*==================
 KNOWLEDGE MANAGEMENT
 ===================*/
 
-func (s *Store) CreateKnowledge(ctx context.Context, knowledge knowledge) error {
-	_, err := s.db.ExecContext(ctx, "INSERT OR IGNORE INTO knowledge(id, adder, link, name, timeAdded, type, subtype, theme, sphere, word_count, duration) VALUES ($1, $2, $3, $4, $5, $6, $7, $8,$9, $10, $11)",
-		uuid.New(), knowledge.adder, knowledge.link, knowledge.name, time.Now(), knowledge.knowledgeType, knowledge.subtype, knowledge.theme, knowledge.sphere,
-		knowledge.wordCount, knowledge.duration)
-	return errors.Wrap(err, "adding material to db")
+func (s *Store) CreateKnowledge(knowledge knowledge) (string, error) {
+	idForCreating := uuid.New()
+	_, err := s.db.Exec("INSERT OR IGNORE INTO knowledge(id, adder, link, name, timeAdded, type, subtype, theme, sphere, word_count, duration) VALUES ($1, $2, $3, $4, $5, $6, $7, $8,$9, $10, $11)",
+		idForCreating, knowledge.Adder, knowledge.Link, knowledge.Name, time.Now(), knowledge.KnowledgeType, knowledge.Subtype, knowledge.Theme, knowledge.Sphere,
+		knowledge.WordCount, knowledge.Duration)
+	return idForCreating, errors.Wrap(err, "adding material to db")
+}
+
+func (s *Store) getKnowledgeById(id string) (knowledge, error) {
+	knw := knowledge{}
+	err := s.db.Get(&knw, "SELECT id, adder, link, name, timeAdded, type, subtype, theme, sphere, word_count, duration FROM knowledge WHERE id=$1", id)
+	//TODO: someday make SELECT *
+	return knw, err
 }

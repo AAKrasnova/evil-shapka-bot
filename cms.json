@@ -1,11 +1,24 @@
 {
-"default_error_text": "Something went wrong, please try again later or contact @Rubella19",
-"no_link_error_text": "Critical: No link",
-"invalid_duration_error_text": "Invalid value for DURATION. Specify number of minutes as integer without anything else", 
-"invalid_wordcount_error_text":"Invalid value for WORD COUNT. Specify number of words as integer without anything else",
-"start_dialogue": "Hello, human", 
-"failed_parse_knowledge": "Failed to parse knowledge",
-"successfully_added": "Successfully added!",
-"failed_adding_knowlegde": "Something went wrong while adding knowledge",
-"failed_creating_user": "Something went wrong while creating user"
+    "en": {
+        "default_error_text": "Something went wrong, please try again later or contact @Rubella19",
+        "no_link_error_text": "Critical: No link",
+        "invalid_duration_error_text": "Invalid value for DURATION. Specify number of minutes as integer without anything else",
+        "invalid_wordcount_error_text": "Invalid value for WORD COUNT. Specify number of words as integer without anything else",
+        "start_dialogue": "Hello, human",
+        "failed_parse_knowledge": "Failed to parse knowledge",
+        "successfully_added": "Successfully added!",
+        "failed_adding_knowlegde": "Something went wrong while adding knowledge",
+        "failed_creating_user": "Something went wrong while creating user"
+    },
+    "ru": {
+        "default_error_text": "Что-то пошло не так, попробуйте ещё раз или напишите @Rubella19",
+        "no_link_error_text": "Критично: Отсутствует ссылка",
+        "invalid_duration_error_text": "Некорректное значение для ДЛИТЕЛЬНОСТИ. Нужно число минут (без ничего мер величин или чего-то ещё)",
+        "invalid_wordcount_error_text": "Некорректное значение для ЧИСЛА СЛОВ. Нужно число минут (без ничего мер величин или чего-то ещё)",
+        "start_dialogue": "Здравствуй, человек",
+        "failed_parse_knowledge": "Ошибка при распозновании кусочка знания",
+        "successfully_added": "Успешно добавлено!",
+        "failed_adding_knowlegde": "Что-то пошло не так при добавлении знания",
+        "failed_creating_user": "Что-то пошло не так при создании пользователя"
+    }
 }

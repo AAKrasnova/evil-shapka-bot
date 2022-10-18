@@ -1,8 +1,11 @@
 package main
 
 import (
+	"encoding/json"
 	"testing"
 
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -137,8 +140,8 @@ func TestBot_parseKnowledge(t *testing.T) {
 			text: `/add https://www.linkedin.com/video/event/urn:li:ugcPost:6950083329849221120/
 			duration 5`,
 			want: knowledge{
-				link:     "https://www.linkedin.com/video/event/urn:li:ugcPost:6950083329849221120/",
-				duration: 5,
+				Link:     "https://www.linkedin.com/video/event/urn:li:ugcPost:6950083329849221120/",
+				Duration: 5,
 			},
 			wantErr: false,
 		},
@@ -148,16 +151,16 @@ func TestBot_parseKnowledge(t *testing.T) {
 			https://www.linkedin.com/video/event/urn:li:ugcPost:6950083329849221120/
 			ДЛИТЕЛЬНОСТЬ 14`,
 			want: knowledge{
-				id:            "",
-				name:          "",
-				adder:         "",
-				knowledgeType: "",
-				subtype:       "",
-				theme:         "",
-				sphere:        "",
-				link:          "https://www.linkedin.com/video/event/urn:li:ugcPost:6950083329849221120/",
-				wordCount:     0,
-				duration:      14,
+				ID:            "",
+				Name:          "",
+				Adder:         "",
+				KnowledgeType: "",
+				Subtype:       "",
+				Theme:         "",
+				Sphere:        "",
+				Link:          "https://www.linkedin.com/video/event/urn:li:ugcPost:6950083329849221120/",
+				WordCount:     0,
+				Duration:      14,
 			},
 			wantErr: false,
 		},
@@ -167,16 +170,16 @@ func TestBot_parseKnowledge(t *testing.T) {
 			Ссылка: https://www.linkedin.com/video/event/urn:li:ugcPost:6950083329849221120/
 			duration 16`,
 			want: knowledge{
-				id:            "",
-				name:          "",
-				adder:         "",
-				knowledgeType: "",
-				subtype:       "",
-				theme:         "",
-				sphere:        "",
-				link:          "https://www.linkedin.com/video/event/urn:li:ugcPost:6950083329849221120/",
-				wordCount:     0,
-				duration:      16,
+				ID:            "",
+				Name:          "",
+				Adder:         "",
+				KnowledgeType: "",
+				Subtype:       "",
+				Theme:         "",
+				Sphere:        "",
+				Link:          "https://www.linkedin.com/video/event/urn:li:ugcPost:6950083329849221120/",
+				WordCount:     0,
+				Duration:      16,
 			},
 			wantErr: false,
 		},
@@ -184,16 +187,16 @@ func TestBot_parseKnowledge(t *testing.T) {
 			name: "Solo Link",
 			text: `https://www.youtube.com/watch?v=HGQdOX7L65o`,
 			want: knowledge{
-				id:            "",
-				name:          "",
-				adder:         "",
-				knowledgeType: "",
-				subtype:       "",
-				theme:         "",
-				sphere:        "",
-				link:          "https://www.youtube.com/watch?v=HGQdOX7L65o",
-				wordCount:     0,
-				duration:      0,
+				ID:            "",
+				Name:          "",
+				Adder:         "",
+				KnowledgeType: "",
+				Subtype:       "",
+				Theme:         "",
+				Sphere:        "",
+				Link:          "https://www.youtube.com/watch?v=HGQdOX7L65o",
+				WordCount:     0,
+				Duration:      0,
 			},
 			wantErr: false,
 		},
@@ -201,16 +204,16 @@ func TestBot_parseKnowledge(t *testing.T) {
 			name: "Solo Link with add command",
 			text: `/add https://www.linkedin.com/video/event/urn:li:ugcPost:6950083329849221120/`,
 			want: knowledge{
-				id:            "",
-				name:          "",
-				adder:         "",
-				knowledgeType: "",
-				subtype:       "",
-				theme:         "",
-				sphere:        "",
-				link:          "https://www.linkedin.com/video/event/urn:li:ugcPost:6950083329849221120/",
-				wordCount:     0,
-				duration:      0,
+				ID:            "",
+				Name:          "",
+				Adder:         "",
+				KnowledgeType: "",
+				Subtype:       "",
+				Theme:         "",
+				Sphere:        "",
+				Link:          "https://www.linkedin.com/video/event/urn:li:ugcPost:6950083329849221120/",
+				WordCount:     0,
+				Duration:      0,
 			},
 			wantErr: false,
 		},
@@ -224,16 +227,16 @@ func TestBot_parseKnowledge(t *testing.T) {
 			Подтип: Webinar
 			Сфера: PM`,
 			want: knowledge{
-				id:            "",
-				name:          "Webinar: Importance of Market Research & Cognitive Design by Amazon Sr PM",
-				adder:         "",
-				knowledgeType: "Video",
-				subtype:       "Webinar",
-				theme:         "Market Research",
-				sphere:        "PM",
-				link:          "https://www.linkedin.com/video/event/urn:li:ugcPost:6950083329849221120/",
-				wordCount:     0,
-				duration:      10,
+				ID:            "",
+				Name:          "Webinar: Importance of Market Research & Cognitive Design by Amazon Sr PM",
+				Adder:         "",
+				KnowledgeType: "Video",
+				Subtype:       "Webinar",
+				Theme:         "Market Research",
+				Sphere:        "PM",
+				Link:          "https://www.linkedin.com/video/event/urn:li:ugcPost:6950083329849221120/",
+				WordCount:     0,
+				Duration:      10,
 			},
 			wantErr: false,
 		},
@@ -247,16 +250,16 @@ func TestBot_parseKnowledge(t *testing.T) {
 			Подтип: Webinar
 			Сфера: PM`,
 			want: knowledge{
-				id:            "",
-				name:          "Webinar: Importance of Market Research & Cognitive Design by Amazon Sr PM",
-				adder:         "",
-				knowledgeType: "Video",
-				subtype:       "Webinar",
-				theme:         "Market Research",
-				sphere:        "PM",
-				link:          "https://www.linkedin.com/video/event/urn:li:ugcPost:6950083329849221120/",
-				wordCount:     0,
-				duration:      10,
+				ID:            "",
+				Name:          "Webinar: Importance of Market Research & Cognitive Design by Amazon Sr PM",
+				Adder:         "",
+				KnowledgeType: "Video",
+				Subtype:       "Webinar",
+				Theme:         "Market Research",
+				Sphere:        "PM",
+				Link:          "https://www.linkedin.com/video/event/urn:li:ugcPost:6950083329849221120/",
+				WordCount:     0,
+				Duration:      10,
 			},
 			wantErr: false,
 		},
@@ -271,28 +274,29 @@ func TestBot_parseKnowledge(t *testing.T) {
 			Подтип: Webinar
 			Сфера: PM`,
 			want: knowledge{
-				id:            "",
-				name:          "Webinar: Importance of Market Research & Cognitive Design by Amazon Sr PM",
-				adder:         "",
-				knowledgeType: "Video",
-				subtype:       "Webinar",
-				theme:         "Market Research",
-				sphere:        "PM",
-				link:          "https://www.linkedin.com/video/event/urn:li:ugcPost:6950083329849221120/",
-				wordCount:     0,
-				duration:      10,
+				ID:            "",
+				Name:          "Webinar: Importance of Market Research & Cognitive Design by Amazon Sr PM",
+				Adder:         "",
+				KnowledgeType: "Video",
+				Subtype:       "Webinar",
+				Theme:         "Market Research",
+				Sphere:        "PM",
+				Link:          "https://www.linkedin.com/video/event/urn:li:ugcPost:6950083329849221120/",
+				WordCount:     0,
+				Duration:      10,
 			},
 			wantErr: false,
 		},
 	}
-	cms, err := readCMS("./cms.json")
+	var cms localies
+	err := readCMS("./cms.json", &cms)
 	if err != nil {
 		t.Fatal(err)
 	}
 	b := Bot{t: cms}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := b.parseKnowledge(tt.text)
+			got, err := b.parseKnowledge(&tgbotapi.Message{Text: tt.text})
 			if tt.wantErr {
 				require.Error(t, err)
 				return
@@ -300,5 +304,33 @@ func TestBot_parseKnowledge(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, tt.want, got)
 		})
+	}
+}
+
+func Test_readCMS(t *testing.T) {
+	cms := map[string]map[string]string{}
+	err := readCMS("./cms.json", &cms)
+	require.NoError(t, err)
+
+	lens := make(map[int][]string)
+	for loc, texts := range cms {
+		lens[len(texts)] = append(lens[len(texts)], loc)
+	}
+	if len(lens) > 1 {
+		t.Errorf("not equal texts count: %v", lens)
+	}
+
+	data, err := json.Marshal(texts{})
+	require.NoError(t, err)
+
+	ids := make(map[string]string)
+	err = json.Unmarshal(data, &ids)
+	require.NoError(t, err)
+
+	for loc, texts := range cms {
+		for id := range ids {
+			_, ok := texts[id]
+			assert.True(t, ok, "missing text %s for locale %s", id, loc)
+		}
 	}
 }

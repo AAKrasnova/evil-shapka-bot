@@ -1,13 +1,13 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/pkg/errors"
@@ -57,37 +57,43 @@ type texts struct {
 	FailedCreatingUser        string `json:"failed_creating_user"`
 }
 
+type localies map[string]texts
+
 type knowledge struct {
-	id    string
-	name  string
-	adder string
-	// timeAdded     time.Time
-	knowledgeType string //type - keyword in Go, so couldn't use it
-	subtype       string
-	theme         string
-	sphere        string
-	link          string
-	wordCount     int
-	duration      int
-	//language      string
-	// deleted       bool
+	ID            string    `db:"id"`
+	Name          string    `db:"name"`
+	Adder         string    `db:"adder"`
+	TimeAdded     time.Time `db:"timeAdded"`
+	KnowledgeType string    `db:"type"` //type - keyword in Go, so couldn't use it
+	Subtype       string    `db:"subtype"`
+	Theme         string    `db:"theme"`
+	Sphere        string    `db:"sphere"`
+	Link          string    `db:"link"`
+	WordCount     int       `db:"word_count"`
+	Duration      int       `db:"duration"`
+	//language      string `db:"language"`
+	// deleted       bool `db:"deleted"`
 	//notes 	string
 	//file
 	//tags []string
 }
 
-func readCMS(path string) (*texts, error) {
+type user struct {
+	ID          string `db:"id"`
+	TGID        int64  `db:"tg_id"`
+	TGUsername  string `db:"tg_username"`
+	TGFirstName string `db:"tg_first_name"`
+	TGLastName  string `db:"tg_last_name"`
+	TGLanguage  string `db:"tg_language"`
+}
+
+func readCMS(path string, cms any) error {
 	f, err := os.Open(path)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	var c texts
-	if err := json.NewDecoder(f).Decode(&c); err != nil {
-		return nil, err
-	}
-
-	return &c, nil
+	return json.NewDecoder(f).Decode(&cms)
 }
 
 /*==================
@@ -97,7 +103,7 @@ TELEGRAM BOT
 type Bot struct {
 	s   *Store
 	bot *tgbotapi.BotAPI
-	t   *texts
+	t   localies
 }
 
 func NewBot(s *Store, token string) (*Bot, error) {
@@ -105,7 +111,8 @@ func NewBot(s *Store, token string) (*Bot, error) {
 	if err != nil {
 		return nil, err
 	}
-	cms, err := readCMS("./cms.json")
+	var cms localies
+	err = readCMS("./cms.json", &cms)
 	if err != nil {
 		return nil, err
 	}
@@ -146,30 +153,30 @@ func (b *Bot) Run() error {
 TELEGRAM BOT: COMMANDS
 ===================*/
 func (b *Bot) start(msg *tgbotapi.Message) {
-	b.reply(msg, b.t.StartDialogue)
+	b.reply(msg, b.t[getLangCode(msg)].StartDialogue)
 }
 
 /*KNOWLEDGE MANAGEMENT*/
 func (b *Bot) add(msg *tgbotapi.Message) {
-	knw, err := b.parseKnowledge(msg.Text)
+	knw, err := b.parseKnowledge(msg)
 	if err != nil {
 		log.Println("error while parsing knowledge", err)
-		b.reply(msg, b.t.FailedToParseKnowledge+": "+err.Error())
+		b.reply(msg, b.t[getLangCode(msg)].FailedToParseKnowledge+": "+err.Error())
 		return
 	}
-	knw.adder = uuid.IntToUUID(msg.From.ID)
+	knw.Adder = uuid.IntToUUID(msg.From.ID)
 
-	err = b.s.CreateKnowledge(context.TODO(), knw)
+	_, err = b.s.CreateKnowledge(knw)
 	if err != nil {
 		log.Println("error while creating knowledge", err)
-		b.reply(msg, b.t.FailedAddingKnowledge)
+		b.reply(msg, b.t[getLangCode(msg)].FailedAddingKnowledge)
 	} else {
-		b.reply(msg, b.t.SuccessfullyAdded)
+		b.reply(msg, b.t[getLangCode(msg)].SuccessfullyAdded)
 	}
 }
 
-func (b *Bot) parseKnowledge(text string) (knowledge, error) { //method creating struct KNOWLEDGE from user input
-	text = strings.TrimSpace(strings.TrimPrefix(text, "/add"))
+func (b *Bot) parseKnowledge(msg *tgbotapi.Message) (knowledge, error) { //method creating struct KNOWLEDGE from user input
+	text := strings.TrimSpace(strings.TrimPrefix(msg.Text, "/add"))
 	// text := msg.CommandArguments() - для команд, которые настоящие команды, а не которые пустую команду берут
 	var err error
 	var knw knowledge = knowledge{}
@@ -180,39 +187,39 @@ func (b *Bot) parseKnowledge(text string) (knowledge, error) { //method creating
 		if ContainsAny(s, "http://", "https://", "www.") || ContainsAny(s, names.Link...) {
 			a := trimMeta(names.Link, s)
 			if !strings.Contains(a, " ") {
-				knw.link = a
+				knw.Link = a
 			} else {
-				return knowledge{}, errors.New(b.t.NoLinkErrorText) //TODO: подумать, может быть можно добавлять материалы без ссылок..?
+				return knowledge{}, errors.New(b.t[getLangCode(msg)].NoLinkErrorText) //TODO: подумать, может быть можно добавлять материалы без ссылок..?
 			}
 		}
 		if ContainsAny(s, names.Name...) {
-			knw.name = trimMeta(names.Name, s)
+			knw.Name = trimMeta(names.Name, s)
 		}
 		if ContainsAny(s, names.Theme...) {
-			knw.theme = trimMeta(names.Theme, s)
+			knw.Theme = trimMeta(names.Theme, s)
 		}
 		if ContainsAny(s, names.Sphere...) {
-			knw.sphere = trimMeta(names.Sphere, s)
+			knw.Sphere = trimMeta(names.Sphere, s)
 		}
 		if ContainsAny(s, names.KnowledgeType...) {
-			knw.knowledgeType = trimMeta(names.KnowledgeType, s)
+			knw.KnowledgeType = trimMeta(names.KnowledgeType, s)
 		}
 		if ContainsAny(s, names.Subtype...) {
-			knw.subtype = trimMeta(names.Subtype, s)
+			knw.Subtype = trimMeta(names.Subtype, s)
 		}
 		if ContainsAny(s, names.Duration...) {
 			a := trimMeta(names.Duration, s)
-			knw.duration, err = strconv.Atoi(a)
+			knw.Duration, err = strconv.Atoi(a)
 			if err != nil {
 				log.Println("parsing error: ", err, "full line", s)
-				return knowledge{}, errors.New(b.t.InvalidDurationErrorText) //TODO не падать, а закидывать нераспарсенное в заметки.
+				return knowledge{}, errors.New(b.t[getLangCode(msg)].InvalidDurationErrorText) //TODO не падать, а закидывать нераспарсенное в заметки.
 			}
 		}
 		if ContainsAny(s, names.WordCount...) {
 			a := trimMeta(names.WordCount, s)
-			knw.wordCount, err = strconv.Atoi(a)
+			knw.WordCount, err = strconv.Atoi(a)
 			if err != nil {
-				return knowledge{}, errors.New(b.t.InvalidWordCountErrorText) //TODO не падать, а закидывать нераспарсенное в заметки.
+				return knowledge{}, errors.New(b.t[getLangCode(msg)].InvalidWordCountErrorText) //TODO не падать, а закидывать нераспарсенное в заметки.
 			}
 		}
 
@@ -226,17 +233,18 @@ MAJOR SUPPORTING FUNCTIONS
 ===================*/
 
 func (b *Bot) ensureUserExists(msg *tgbotapi.Message) {
-	userID := uuid.IntToUUID(msg.From.ID)
-
-	userTgID := msg.From.ID
-	userTgName := msg.From.UserName
-	userTgFirstName := msg.From.FirstName
-	userTgLastName := msg.From.LastName
-	userTgLang := msg.From.LanguageCode
-	err := b.s.CreateUser(context.TODO(), userID, userTgID, userTgName, userTgFirstName, userTgLastName, userTgLang)
+	usr := user{
+		ID:          uuid.IntToUUID(msg.From.ID),
+		TGID:        msg.From.ID,
+		TGUsername:  msg.From.UserName,
+		TGFirstName: msg.From.FirstName,
+		TGLastName:  msg.From.LastName,
+		TGLanguage:  msg.From.LanguageCode,
+	}
+	_, err := b.s.CreateUser(usr)
 	if err != nil {
 		log.Println("error while creating user", err)
-		b.reply(msg, b.t.FailedCreatingUser)
+		b.reply(msg, b.t[getLangCode(msg)].FailedCreatingUser)
 	}
 }
 
@@ -299,4 +307,12 @@ func trimMeta(name []string, text string) (result string) { // method to delete 
 	}
 	//TODO Убрать кавычки в оставшемся результате, см.  "case 3.1" в тестах функции
 	return result
+}
+
+func getLangCode(msg *tgbotapi.Message) string {
+	if msg.From.LanguageCode == "ru" {
+		return "ru"
+	} else {
+		return "en"
+	}
 }
