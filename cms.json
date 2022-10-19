@@ -8,7 +8,21 @@
         "failed_parse_knowledge": "Failed to parse knowledge",
         "successfully_added": "Successfully added!",
         "failed_adding_knowlegde": "Something went wrong while adding knowledge",
-        "failed_creating_user": "Something went wrong while creating user"
+        "failed_creating_user": "Something went wrong while creating user",
+        "search_failed": "Something went wrong while searching for material",
+        "knowledge_name":"Name",
+        "knowledge_link":"Link",
+        "knowledge_duration":"Duration",
+        "knowledge_wordcount":"Word Count",
+        "knowledge_sphere":"Sphere",
+        "knowledge_theme":"Theme",
+        "knowledge_type":"Type",
+        "knowledge_subtype":"Subtype",
+        "knowledge_adder":"Added by ",
+        "knowledge_timeadded":"Date added",
+        "words":"words",
+        "minutes":"minutes",
+        "didnt_find_anything": "Didn't find anything"
     },
     "ru": {
         "default_error_text": "Что-то пошло не так, попробуйте ещё раз или напишите @Rubella19",
@@ -19,6 +33,20 @@
         "failed_parse_knowledge": "Ошибка при распозновании кусочка знания",
         "successfully_added": "Успешно добавлено!",
         "failed_adding_knowlegde": "Что-то пошло не так при добавлении знания",
-        "failed_creating_user": "Что-то пошло не так при создании пользователя"
+        "failed_creating_user": "Что-то пошло не так при создании пользователя",
+        "search_failed": "Ошибка при поиске материала",
+        "knowledge_name":"Название",
+        "knowledge_link":"Ссылка",
+        "knowledge_duration":"Длительность",
+        "knowledge_wordcount":"Количество слов",
+        "knowledge_sphere":"Сфера",
+        "knowledge_theme":"Тема",
+        "knowledge_type":"Тип",
+        "knowledge_subtype":"Подтип",
+        "knowledge_adder":"Кем добавлено",
+        "knowledge_timeadded":"Дата добавления",
+        "words":"сл.",
+        "minutes":"мин.",
+        "didnt_find_anything": "По запросу ничего не найдено"
     }
 }

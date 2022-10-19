@@ -4,7 +4,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"log"
+	"math/rand"
 	"os"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 
@@ -56,6 +58,8 @@ func run() error {
 	if err != nil {
 		return err
 	}
+
+	rand.Seed(time.Now().Unix())
 
 	return runBot(rawDB, cfg.TgToken)
 }

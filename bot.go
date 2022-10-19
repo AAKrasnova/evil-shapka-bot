@@ -55,6 +55,20 @@ type texts struct {
 	SuccessfullyAdded         string `json:"successfully_added"`
 	FailedAddingKnowledge     string `json:"failed_adding_knowlegde"`
 	FailedCreatingUser        string `json:"failed_creating_user"`
+	SearchFailed              string `json:"search_failed"`
+	KnowledgeName             string `json:"knowledge_name"`
+	KnowledgeLink             string `json:"knowledge_link"`
+	KnowledgeDuration         string `json:"knowledge_duration"`
+	KnowledgeWordCount        string `json:"knowledge_wordcount"`
+	KnowledgeSphere           string `json:"knowledge_sphere"`
+	KnowledgeTheme            string `json:"knowledge_theme"`
+	KnowledgeType             string `json:"knowledge_type"`
+	KnowledgeSubtype          string `json:"knowledge_subtype"`
+	KnowledgeAdder            string `json:"knowledge_adder"`
+	KnowledgeTimeAdded        string `json:"knowledge_timeadded"`
+	Words                     string `json:"words"`
+	Minutes                   string `json:"minutes"`
+	DidntFindAnything         string `json:"didnt_find_anything"`
 }
 
 type localies map[string]texts
@@ -138,12 +152,14 @@ func (b *Bot) Run() error {
 		b.ensureUserExists(msg)
 
 		switch msg.Command() {
-		case "add":
+		case "add", "", "Add":
 			b.add(msg)
-		case "start":
+		case "start", "Start":
 			b.start(msg)
-		case "":
-			b.add(msg)
+		case "find", "Find":
+			b.find(msg)
+		case "list", "List":
+			b.findList(msg)
 		}
 	}
 	return nil
@@ -153,7 +169,7 @@ func (b *Bot) Run() error {
 TELEGRAM BOT: COMMANDS
 ===================*/
 func (b *Bot) start(msg *tgbotapi.Message) {
-	b.reply(msg, b.t[getLangCode(msg)].StartDialogue)
+	b.reply(msg, b.texts(msg).StartDialogue)
 }
 
 /*KNOWLEDGE MANAGEMENT*/
@@ -161,17 +177,24 @@ func (b *Bot) add(msg *tgbotapi.Message) {
 	knw, err := b.parseKnowledge(msg)
 	if err != nil {
 		log.Println("error while parsing knowledge", err)
-		b.reply(msg, b.t[getLangCode(msg)].FailedToParseKnowledge+": "+err.Error())
+		b.reply(msg, b.texts(msg).FailedToParseKnowledge+": "+err.Error())
 		return
 	}
 	knw.Adder = uuid.IntToUUID(msg.From.ID)
 
-	_, err = b.s.CreateKnowledge(knw)
+	idKnowledge := ""
+	idKnowledge, err = b.s.CreateKnowledge(knw)
 	if err != nil {
-		log.Println("error while creating knowledge", err)
-		b.reply(msg, b.t[getLangCode(msg)].FailedAddingKnowledge)
+		log.Println("error while creating knowledge", err.Error())
+		b.reply(msg, b.texts(msg).FailedAddingKnowledge)
 	} else {
-		b.reply(msg, b.t[getLangCode(msg)].SuccessfullyAdded)
+		knwldge, err1 := b.s.getKnowledgeById(idKnowledge)
+		if err1 != nil {
+			log.Println("error while retrieving created knowledge", err1)
+			b.reply(msg, b.texts(msg).FailedAddingKnowledge)
+		} else {
+			b.reply(msg, b.texts(msg).SuccessfullyAdded+"\n"+b.FormatKnowledge(knwldge, false, msg))
+		}
 	}
 }
 
@@ -189,7 +212,7 @@ func (b *Bot) parseKnowledge(msg *tgbotapi.Message) (knowledge, error) { //metho
 			if !strings.Contains(a, " ") {
 				knw.Link = a
 			} else {
-				return knowledge{}, errors.New(b.t[getLangCode(msg)].NoLinkErrorText) //TODO: подумать, может быть можно добавлять материалы без ссылок..?
+				return knowledge{}, errors.New(b.texts(msg).NoLinkErrorText) //TODO: подумать, может быть можно добавлять материалы без ссылок..?
 			}
 		}
 		if ContainsAny(s, names.Name...) {
@@ -212,20 +235,59 @@ func (b *Bot) parseKnowledge(msg *tgbotapi.Message) (knowledge, error) { //metho
 			knw.Duration, err = strconv.Atoi(a)
 			if err != nil {
 				log.Println("parsing error: ", err, "full line", s)
-				return knowledge{}, errors.New(b.t[getLangCode(msg)].InvalidDurationErrorText) //TODO не падать, а закидывать нераспарсенное в заметки.
+				return knowledge{}, errors.New(b.texts(msg).InvalidDurationErrorText) //TODO не падать, а закидывать нераспарсенное в заметки.
 			}
 		}
 		if ContainsAny(s, names.WordCount...) {
 			a := trimMeta(names.WordCount, s)
 			knw.WordCount, err = strconv.Atoi(a)
 			if err != nil {
-				return knowledge{}, errors.New(b.t[getLangCode(msg)].InvalidWordCountErrorText) //TODO не падать, а закидывать нераспарсенное в заметки.
+				return knowledge{}, errors.New(b.texts(msg).InvalidWordCountErrorText) //TODO не падать, а закидывать нераспарсенное в заметки.
 			}
 		}
 
 	}
 
 	return knw, err
+}
+
+func (b *Bot) find(msg *tgbotapi.Message) {
+	searchString := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(msg.Text, "/Find"), "/find"))
+	userBDId := uuid.IntToUUID(msg.From.ID)
+	gotKnowledges, err := b.s.GetKnowledgeByUserAndSearch(userBDId, searchString)
+	//TODO: <ANAL>: Сколько записей в среднем приходит? <H> Если пришло 100 записей, показать 3, а остальные показать по запросу
+	if err == nil {
+		if len(gotKnowledges) == 0 {
+			b.reply(msg, b.texts(msg).DidntFindAnything)
+		} else {
+			for _, knw := range gotKnowledges {
+				b.reply(msg, b.FormatKnowledge(knw, true, msg))
+			}
+		}
+	} else {
+		b.reply(msg, b.texts(msg).SearchFailed+": "+err.Error())
+	}
+
+}
+func (b *Bot) findList(msg *tgbotapi.Message) {
+	searchString := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(strings.TrimPrefix(msg.Text, "/FindList"), "/findList"), "/findlist"))
+	userBDId := uuid.IntToUUID(msg.From.ID)
+	gotKnowledges, err := b.s.GetKnowledgeByUserAndSearch(userBDId, searchString)
+	//TODO: <ANAL>: Сколько записей в среднем приходит? <H> Если пришло 100 записей, показать 3, а остальные показать по запросу
+	if err == nil {
+		if len(gotKnowledges) == 0 {
+			b.reply(msg, b.texts(msg).DidntFindAnything)
+		} else {
+			answermessage := ""
+			for _, knw := range gotKnowledges {
+				answermessage += "\n" + b.FormatKnowledge(knw, false, msg)
+			}
+			b.reply(msg, answermessage)
+		}
+	} else {
+		b.reply(msg, b.texts(msg).SearchFailed+": "+err.Error())
+	}
+
 }
 
 /*==================
@@ -244,7 +306,7 @@ func (b *Bot) ensureUserExists(msg *tgbotapi.Message) {
 	_, err := b.s.CreateUser(usr)
 	if err != nil {
 		log.Println("error while creating user", err)
-		b.reply(msg, b.t[getLangCode(msg)].FailedCreatingUser)
+		b.reply(msg, b.texts(msg).FailedCreatingUser)
 	}
 }
 
@@ -309,10 +371,60 @@ func trimMeta(name []string, text string) (result string) { // method to delete 
 	return result
 }
 
-func getLangCode(msg *tgbotapi.Message) string {
+func getLanguageCode(msg *tgbotapi.Message) string {
+	lang := "en"
 	if msg.From.LanguageCode == "ru" {
-		return "ru"
-	} else {
-		return "en"
+		lang = "ru"
 	}
+	return lang
+}
+
+func (b *Bot) texts(msg *tgbotapi.Message) texts {
+	return b.t[getLanguageCode(msg)]
+}
+
+func (b *Bot) FormatKnowledge(knowledge knowledge, full bool, msg *tgbotapi.Message) string {
+	str := ""
+	if full {
+		if len(knowledge.Name) > 0 {
+			str += b.texts(msg).KnowledgeName + ": " + knowledge.Name
+		}
+		if len(knowledge.Link) > 0 {
+			str += "\n" + b.texts(msg).KnowledgeLink + ": " + knowledge.Link
+		}
+		if len(knowledge.Sphere) > 0 {
+			str += "\n" + b.texts(msg).KnowledgeSphere + ": " + knowledge.Sphere
+		}
+		if len(knowledge.KnowledgeType) > 0 {
+			str += "\n" + b.texts(msg).KnowledgeType + ": " + knowledge.KnowledgeType
+		}
+		if len(knowledge.Subtype) > 0 {
+			str += "\n" + b.texts(msg).KnowledgeSubtype + ": " + knowledge.Subtype
+		}
+		if len(knowledge.Theme) > 0 {
+			str += "\n" + b.texts(msg).KnowledgeTheme + ": " + knowledge.Theme
+		}
+		if getLanguageCode(msg) == "ru" {
+			str += "\n" + b.texts(msg).KnowledgeTimeAdded + ": " + knowledge.TimeAdded.Format("02.01.2006 15:04")
+		} else {
+			str += "\n" + b.texts(msg).KnowledgeTimeAdded + ": " + knowledge.TimeAdded.Format("Mon, 02 Jan 2006 03:04")
+		}
+		if knowledge.Duration > 0 {
+			str += "\n" + b.texts(msg).KnowledgeDuration + ": " + strconv.Itoa(knowledge.Duration) + " " + b.texts(msg).Minutes
+		}
+		if knowledge.WordCount > 0 {
+			str += "\n" + b.texts(msg).KnowledgeWordCount + ": " + strconv.Itoa(knowledge.WordCount) + " " + b.texts(msg).Words
+		}
+		//str += "\n" + b.texts(msg).KnowledgeAdder + ": " + knowledge.Adder //TODO: <H> Сделать красивое выведение имени, а не id пользователя 😆
+
+	} else {
+		//TODO сделать название кликабельным, а не отдельной строкой @pechorka, пока не поняла, как вообще добавлять Markup
+		if len(knowledge.Name) > 0 {
+			str += knowledge.Name
+		}
+		if len(knowledge.Link) > 0 {
+			str += "\n" + knowledge.Link
+		}
+	}
+	return str
 }
