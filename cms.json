@@ -22,13 +22,14 @@
         "knowledge_timeadded":"Date added",
         "words":"words",
         "minutes":"minutes",
-        "didnt_find_anything": "Didn't find anything"
+        "didnt_find_anything": "Didn't find anything",
+        "failed_looking_consumed": "Something went wrong while getting consumed knowledge"
     },
     "ru": {
         "default_error_text": "Что-то пошло не так, попробуйте ещё раз или напишите @Rubella19",
         "no_link_error_text": "Критично: Отсутствует ссылка",
-        "invalid_duration_error_text": "Некорректное значение для ДЛИТЕЛЬНОСТИ. Нужно число минут (без ничего мер величин или чего-то ещё)",
-        "invalid_wordcount_error_text": "Некорректное значение для ЧИСЛА СЛОВ. Нужно число минут (без ничего мер величин или чего-то ещё)",
+        "invalid_duration_error_text": "Некорректное значение для ДЛИТЕЛЬНОСТИ. Нужно число минут (без мер величин или чего-то ещё)",
+        "invalid_wordcount_error_text": "Некорректное значение для ЧИСЛА СЛОВ. Нужно число минут (без мер величин или чего-то ещё)",
         "start_dialogue": "Здравствуй, человек",
         "failed_parse_knowledge": "Ошибка при распозновании кусочка знания",
         "successfully_added": "Успешно добавлено!",
@@ -47,6 +48,7 @@
         "knowledge_timeadded":"Дата добавления",
         "words":"сл.",
         "minutes":"мин.",
-        "didnt_find_anything": "По запросу ничего не найдено"
+        "didnt_find_anything": "По запросу ничего не найдено",
+        "failed_looking_consumed": "Что-то пошло не так при поиске потреблённого контента"
     }
 }

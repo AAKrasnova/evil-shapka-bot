@@ -28,14 +28,14 @@ CREATE TABLE knowledge (
 );
 
 CREATE TABLE consumed (
-  id varchar PRIMARY KEY,
   knowledge_id varchar,
   user_id varchar,
-  date datetime,
-  ready_to_re integer,
-  rate integer,
-  attentionRate integer,
-  comment text,
+  date datetime DEFAULT (DATETIME('now')),
+--   ready_to_re integer,
+--   rate integer,
+--   attentionRate integer,
+--   comment text,
+  PRIMARY KEY (knowledge_id, user_id),
   FOREIGN KEY (knowledge_id) 
   REFERENCES knowledge (id) 
          ON DELETE NO ACTION

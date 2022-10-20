@@ -69,6 +69,7 @@ type texts struct {
 	Words                     string `json:"words"`
 	Minutes                   string `json:"minutes"`
 	DidntFindAnything         string `json:"didnt_find_anything"`
+	FailedLookingConsumed     string `json:"failed_looking_consumed"`
 }
 
 type localies map[string]texts
@@ -275,6 +276,10 @@ func (b *Bot) parseKnowledge(msg *tgbotapi.Message) (knowledge, error) { //metho
 func (b *Bot) find(msg *tgbotapi.Message) {
 	searchString := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(msg.Text, "/Find"), "/find"))
 	userBDId := uuid.IntToUUID(msg.From.ID)
+	consumed, err1 := b.s.getConsumedById(userBDId)
+	if err1 != nil {
+		b.replyWithText(msg, b.texts(msg).FailedLookingConsumed+": "+err1.Error())
+	}
 	gotKnowledges, err := b.s.GetKnowledgeByUserAndSearch(userBDId, searchString)
 	//TODO: <ANAL>: Сколько записей в среднем приходит? <H> Если пришло 100 записей, показать 3, а остальные показать по запросу
 	if err == nil {
@@ -283,7 +288,7 @@ func (b *Bot) find(msg *tgbotapi.Message) {
 		} else {
 			for _, knw := range gotKnowledges {
 				btn := tgbotapi.NewInlineKeyboardButtonData("read", "read"+knw.ID)
-				if knw.Read {
+				if consumed[knw.ID] {
 					btn = tgbotapi.NewInlineKeyboardButtonData("unread", "unread"+knw.ID)
 				}
 				keyboard := tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(btn))
@@ -339,7 +344,7 @@ func (b *Bot) ensureUserExists(msg *tgbotapi.Message) {
 func (b *Bot) replyWithText(to *tgbotapi.Message, text string) {
 	msg := tgbotapi.NewMessage(to.Chat.ID, text)
 	msg.ReplyToMessageID = to.MessageID
-
+	msg.ReplyMarkup = tgbotapi.ModeMarkdownV2
 	b.send(msg)
 }
 
@@ -347,7 +352,7 @@ func (b *Bot) replyWithKeyboard(to *tgbotapi.Message, text string, keyboard tgbo
 	msg := tgbotapi.NewMessage(to.Chat.ID, text)
 	msg.ReplyToMessageID = to.MessageID
 	msg.ReplyMarkup = keyboard
-
+	msg.ReplyMarkup = tgbotapi.ModeMarkdownV2
 	b.send(msg)
 }
 

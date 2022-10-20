@@ -68,3 +68,23 @@ func (s *Store) GetKnowledgeByUserAndSearch(userID string, searchString string) 
 	//TODO: someday make SELECT *
 	return knw, err
 }
+
+func (s *Store) getConsumedById(userId string) (map[string]bool, error) {
+	rows, err := s.db.Query("SELECT knowledge_id FROM consumed WHERE user_id=$1", userId)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close() //if err!=nil then rows==nil and defer will cause PANIC! so we close rows after this
+
+	mapa := map[string]bool{}
+	for rows.Next() {
+		knwID := ""
+		err := rows.Scan(&knwID)
+		if err != nil {
+			return nil, err
+		}
+		mapa[knwID] = true
+	}
+
+	return mapa, err
+}
