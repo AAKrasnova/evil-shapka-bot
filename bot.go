@@ -125,6 +125,7 @@ func NewBot(s *Store, token string) (*Bot, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	var cms localies
 	err = readCMS("./cms.json", &cms)
 	if err != nil {
@@ -144,32 +145,52 @@ func (b *Bot) Run() error {
 	updates := b.bot.GetUpdatesChan(u)
 
 	for update := range updates {
-		msg := update.Message
-		if msg == nil {
-			continue
+		if msg := update.Message; msg != nil {
+			b.handleMsg(msg)
 		}
 
-		b.ensureUserExists(msg)
-
-		switch msg.Command() {
-		case "add", "", "Add":
-			b.add(msg)
-		case "start", "Start":
-			b.start(msg)
-		case "find", "Find":
-			b.find(msg)
-		case "list", "List":
-			b.findList(msg)
+		if callback := update.CallbackQuery; callback != nil {
+			b.handleCallback(callback)
 		}
 	}
 	return nil
 }
 
-/*==================
+func (b *Bot) handleMsg(msg *tgbotapi.Message) {
+	b.ensureUserExists(msg)
+
+	switch msg.Command() {
+	case "add", "", "Add":
+		b.add(msg)
+	case "start", "Start":
+		b.start(msg)
+	case "find", "Find":
+		b.find(msg)
+	case "list", "List":
+		b.findList(msg)
+	}
+}
+
+func (b *Bot) handleCallback(callback *tgbotapi.CallbackQuery) {
+	b.ensureUserExists(callback.Message)
+
+	switch {
+	case strings.HasPrefix(callback.Data, "read"):
+		knwID := strings.TrimPrefix(callback.Data, "read")
+		// TODO mark as read
+	case strings.HasPrefix(callback.Data, "unread"):
+		knwID := strings.TrimPrefix(callback.Data, "unread")
+		// TODO mark as unread
+	}
+}
+
+/*
+==================
 TELEGRAM BOT: COMMANDS
-===================*/
+===================
+*/
 func (b *Bot) start(msg *tgbotapi.Message) {
-	b.reply(msg, b.texts(msg).StartDialogue)
+	b.replyWithText(msg, b.texts(msg).StartDialogue)
 }
 
 /*KNOWLEDGE MANAGEMENT*/
@@ -177,7 +198,7 @@ func (b *Bot) add(msg *tgbotapi.Message) {
 	knw, err := b.parseKnowledge(msg)
 	if err != nil {
 		log.Println("error while parsing knowledge", err)
-		b.reply(msg, b.texts(msg).FailedToParseKnowledge+": "+err.Error())
+		b.replyWithText(msg, b.texts(msg).FailedToParseKnowledge+": "+err.Error())
 		return
 	}
 	knw.Adder = uuid.IntToUUID(msg.From.ID)
@@ -186,14 +207,14 @@ func (b *Bot) add(msg *tgbotapi.Message) {
 	idKnowledge, err = b.s.CreateKnowledge(knw)
 	if err != nil {
 		log.Println("error while creating knowledge", err.Error())
-		b.reply(msg, b.texts(msg).FailedAddingKnowledge)
+		b.replyWithText(msg, b.texts(msg).FailedAddingKnowledge)
 	} else {
 		knwldge, err1 := b.s.getKnowledgeById(idKnowledge)
 		if err1 != nil {
 			log.Println("error while retrieving created knowledge", err1)
-			b.reply(msg, b.texts(msg).FailedAddingKnowledge)
+			b.replyWithText(msg, b.texts(msg).FailedAddingKnowledge)
 		} else {
-			b.reply(msg, b.texts(msg).SuccessfullyAdded+"\n"+b.FormatKnowledge(knwldge, false, msg))
+			b.replyWithText(msg, b.texts(msg).SuccessfullyAdded+"\n"+b.FormatKnowledge(knwldge, false, msg))
 		}
 	}
 }
@@ -258,14 +279,19 @@ func (b *Bot) find(msg *tgbotapi.Message) {
 	//TODO: <ANAL>: Сколько записей в среднем приходит? <H> Если пришло 100 записей, показать 3, а остальные показать по запросу
 	if err == nil {
 		if len(gotKnowledges) == 0 {
-			b.reply(msg, b.texts(msg).DidntFindAnything)
+			b.replyWithText(msg, b.texts(msg).DidntFindAnything)
 		} else {
 			for _, knw := range gotKnowledges {
-				b.reply(msg, b.FormatKnowledge(knw, true, msg))
+				btn := tgbotapi.NewInlineKeyboardButtonData("read", "read"+knw.ID)
+				if knw.Read {
+					btn = tgbotapi.NewInlineKeyboardButtonData("unread", "unread"+knw.ID)
+				}
+				keyboard := tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(btn))
+				b.replyWithKeyboard(msg, b.FormatKnowledge(knw, true, msg), keyboard)
 			}
 		}
 	} else {
-		b.reply(msg, b.texts(msg).SearchFailed+": "+err.Error())
+		b.replyWithText(msg, b.texts(msg).SearchFailed+": "+err.Error())
 	}
 
 }
@@ -276,16 +302,16 @@ func (b *Bot) findList(msg *tgbotapi.Message) {
 	//TODO: <ANAL>: Сколько записей в среднем приходит? <H> Если пришло 100 записей, показать 3, а остальные показать по запросу
 	if err == nil {
 		if len(gotKnowledges) == 0 {
-			b.reply(msg, b.texts(msg).DidntFindAnything)
+			b.replyWithText(msg, b.texts(msg).DidntFindAnything)
 		} else {
 			answermessage := ""
 			for _, knw := range gotKnowledges {
 				answermessage += "\n" + b.FormatKnowledge(knw, false, msg)
 			}
-			b.reply(msg, answermessage)
+			b.replyWithText(msg, answermessage)
 		}
 	} else {
-		b.reply(msg, b.texts(msg).SearchFailed+": "+err.Error())
+		b.replyWithText(msg, b.texts(msg).SearchFailed+": "+err.Error())
 	}
 
 }
@@ -306,14 +332,26 @@ func (b *Bot) ensureUserExists(msg *tgbotapi.Message) {
 	_, err := b.s.CreateUser(usr)
 	if err != nil {
 		log.Println("error while creating user", err)
-		b.reply(msg, b.texts(msg).FailedCreatingUser)
+		b.replyWithText(msg, b.texts(msg).FailedCreatingUser)
 	}
 }
 
-func (b *Bot) reply(to *tgbotapi.Message, text string) {
+func (b *Bot) replyWithText(to *tgbotapi.Message, text string) {
 	msg := tgbotapi.NewMessage(to.Chat.ID, text)
 	msg.ReplyToMessageID = to.MessageID
 
+	b.send(msg)
+}
+
+func (b *Bot) replyWithKeyboard(to *tgbotapi.Message, text string, keyboard tgbotapi.InlineKeyboardMarkup) {
+	msg := tgbotapi.NewMessage(to.Chat.ID, text)
+	msg.ReplyToMessageID = to.MessageID
+	msg.ReplyMarkup = keyboard
+
+	b.send(msg)
+}
+
+func (b *Bot) send(msg tgbotapi.MessageConfig) {
 	_, err := b.bot.Send(msg)
 	if err != nil {
 		log.Println("error while sending message: ", err)
