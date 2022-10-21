@@ -441,23 +441,20 @@ IMPORT AND EXPORT
 func (b *Bot) importKnowledges(msg *tgbotapi.Message) {
 	fileLink, err := b.bot.GetFileDirectURL(msg.ReplyToMessage.Document.FileID)
 	if err != nil {
-		log.Println("Error getting file link: ", err)
-		b.replyWithText(msg, b.texts(msg).FailedToGetFile)
+		b.replyError(msg, b.texts(msg).FailedToGetFile, errors.Wrap(err, "failed to get file link"))
 		return
 	}
 
 	resp, err := http.Get(fileLink) // TODO file might be too malicious - check it somehow
 	if err != nil {
-		log.Println("Error getting file: ", err)
-		b.replyWithText(msg, b.texts(msg).FailedToGetFile)
+		b.replyError(msg, b.texts(msg).FailedToGetFile, errors.Wrap(err, "failed to get file"))
 		return
 	}
 	defer resp.Body.Close()
 
 	knowledges, err := b.parseCSV(resp.Body)
 	if err != nil {
-		log.Println("Error parsing file: ", err)
-		b.replyWithText(msg, b.texts(msg).FailedToParseFile)
+		b.replyError(msg, b.texts(msg).FailedToParseFile, errors.Wrap(err, "failed to parse file"))
 		return
 	}
 
@@ -497,6 +494,16 @@ func (b *Bot) ensureUserExists(msg *tgbotapi.Message) {
 func (b *Bot) replyWithText(to *tgbotapi.Message, text string) {
 	msg := tgbotapi.NewMessage(to.Chat.ID, text)
 	msg.ReplyToMessageID = to.MessageID
+	// msg.ReplyMarkup = tgbotapi.ModeMarkdownV2
+	b.send(msg)
+}
+
+func (b *Bot) replyError(to *tgbotapi.Message, text string, err error) {
+	msg := tgbotapi.NewMessage(to.Chat.ID, text)
+	msg.ReplyToMessageID = to.MessageID
+	if err != nil {
+		log.Println(err.Error())
+	}
 	// msg.ReplyMarkup = tgbotapi.ModeMarkdownV2
 	b.send(msg)
 }
