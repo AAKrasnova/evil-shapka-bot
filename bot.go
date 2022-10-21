@@ -7,8 +7,10 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/fsnotify/fsnotify"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/pkg/errors"
 
@@ -79,7 +81,99 @@ type texts struct {
 	FailedLookingConsumed     string `json:"failed_looking_consumed"`
 }
 
-type localies map[string]texts
+type localies struct {
+	mu  sync.RWMutex
+	cms map[string]texts
+
+	watcher *fsnotify.Watcher
+	stop    chan struct{}
+}
+
+func newLocalies() *localies {
+	l := localies{
+		cms: make(map[string]texts),
+	}
+	return &l
+}
+
+func (l *localies) initWatcher(path string) error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.watcher != nil { // already watching
+		return nil
+	}
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		return errors.Wrap(err, "failed to create watcher")
+	}
+	err = watcher.Add(path)
+	if err != nil {
+		return errors.Wrap(err, "failed to add file to watcher")
+	}
+	l.watcher = watcher
+	l.stop = make(chan struct{})
+	go func() {
+		for {
+			select {
+			case event := <-l.watcher.Events:
+				if event.Op&fsnotify.Write == fsnotify.Write {
+					err := l.load(path)
+					if err != nil {
+						log.Println(errors.Wrap(err, "failed to reload cms"))
+					}
+				}
+			case err := <-l.watcher.Errors:
+				log.Println(errors.Wrap(err, "failed to watch cms"))
+			case <-l.stop:
+				l.clearWatcher()
+				return
+			}
+		}
+	}()
+	return nil
+}
+
+func (l *localies) clearWatcher() {
+	if l.watcher == nil {
+		return
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	err := l.watcher.Close()
+	if err != nil {
+		log.Println(errors.Wrap(err, "failed to close watcher"))
+	}
+	l.watcher = nil
+	l.stop = nil
+}
+
+func (l *localies) close() {
+	close(l.stop)
+}
+
+func (l *localies) load(path string) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	var cms map[string]texts
+	err = json.NewDecoder(f).Decode(&cms)
+	if err != nil {
+		return err
+	}
+	l.cms = cms
+	return f.Close()
+}
+
+func (l *localies) texts(msg *tgbotapi.Message) texts {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+
+	return l.cms[getLanguageCode(msg)]
+}
 
 type knowledge struct {
 	ID            string    `db:"id" csv:"-"`
@@ -112,15 +206,6 @@ type user struct {
 	TGLanguage  string `db:"tg_language"`
 }
 
-func readCMS(path string, cms any) error {
-	f, err := os.Open(path)
-	if err != nil {
-		return err
-	}
-
-	return json.NewDecoder(f).Decode(&cms)
-}
-
 /*==================
 TELEGRAM BOT
 ===================*/
@@ -128,7 +213,7 @@ TELEGRAM BOT
 type Bot struct {
 	s   *Store
 	bot *tgbotapi.BotAPI
-	t   localies
+	cms *localies
 }
 
 func NewBot(s *Store, token string) (*Bot, error) {
@@ -136,16 +221,20 @@ func NewBot(s *Store, token string) (*Bot, error) {
 	if err != nil {
 		return nil, err
 	}
+	log.Printf("Authorized on account %s", bot.Self.UserName)
 
-	var cms localies
-	err = readCMS("./cms.json", &cms)
+	cms := newLocalies()
+	err = cms.load("./cms.json")
+	if err != nil {
+		return nil, err
+	}
+	err = cms.initWatcher("./cms.json")
 	if err != nil {
 		return nil, err
 	}
 	bot.Debug = true
-	log.Printf("Authorized on account %s", bot.Self.UserName)
 
-	return &Bot{s: s, bot: bot, t: cms}, nil
+	return &Bot{s: s, bot: bot, cms: cms}, nil
 }
 
 func (b *Bot) Run() error {
@@ -165,6 +254,11 @@ func (b *Bot) Run() error {
 		}
 	}
 	return nil
+}
+
+func (b *Bot) Stop() {
+	b.bot.StopReceivingUpdates()
+	b.cms.close()
 }
 
 func (b *Bot) handleMsg(msg *tgbotapi.Message) {
@@ -456,7 +550,7 @@ func getLanguageCode(msg *tgbotapi.Message) string {
 }
 
 func (b *Bot) texts(msg *tgbotapi.Message) texts {
-	return b.t[getLanguageCode(msg)]
+	return b.cms.texts(msg)
 }
 
 func (b *Bot) FormatKnowledge(knowledge knowledge, full bool, msg *tgbotapi.Message) string {
