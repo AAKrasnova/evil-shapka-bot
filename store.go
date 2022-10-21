@@ -69,7 +69,9 @@ func (s *Store) GetKnowledgeByUserAndSearch(userID string, searchString string) 
 	return knw, err
 }
 
-func (s *Store) getConsumedById(userId string) (map[string]bool, error) {
+/* Consumption */
+
+func (s *Store) getConsumedByUserId(userId string) (map[string]bool, error) {
 	rows, err := s.db.Query("SELECT knowledge_id FROM consumed WHERE user_id=$1", userId)
 	if err != nil {
 		return nil, err
@@ -87,4 +89,20 @@ func (s *Store) getConsumedById(userId string) (map[string]bool, error) {
 	}
 
 	return mapa, err
+}
+
+func (s *Store) markAsRead(knwId string, usrId string) error {
+	_, err := s.db.Exec("INSERT INTO consumed(knowledge_id, user_id) VALUES ($1, $2)", knwId, usrId)
+	if err != nil {
+		return errors.Wrap(err, "Creating consumption in db")
+	}
+	return err
+}
+
+func (s *Store) markAsUnRead(knwId string, usrId string) error {
+	_, err := s.db.Exec("INSERT FROM consumed WHERE knowledge_id=$1 AND user_id=$2", knwId, usrId)
+	if err != nil {
+		return errors.Wrap(err, "Deleting consumption in db")
+	}
+	return err
 }

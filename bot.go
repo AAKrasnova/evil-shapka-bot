@@ -178,10 +178,10 @@ func (b *Bot) handleCallback(callback *tgbotapi.CallbackQuery) {
 	switch {
 	case strings.HasPrefix(callback.Data, "read"):
 		knwID := strings.TrimPrefix(callback.Data, "read")
-		// TODO mark as read
+		b.s.markAsRead(knwID, uuid.IntToUUID(callback.Message.From.ID))
 	case strings.HasPrefix(callback.Data, "unread"):
 		knwID := strings.TrimPrefix(callback.Data, "unread")
-		// TODO mark as unread
+		b.s.markAsUnRead(knwID, uuid.IntToUUID(callback.Message.From.ID))
 	}
 }
 
@@ -276,7 +276,7 @@ func (b *Bot) parseKnowledge(msg *tgbotapi.Message) (knowledge, error) { //metho
 func (b *Bot) find(msg *tgbotapi.Message) {
 	searchString := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(msg.Text, "/Find"), "/find"))
 	userBDId := uuid.IntToUUID(msg.From.ID)
-	consumed, err1 := b.s.getConsumedById(userBDId)
+	consumed, err1 := b.s.getConsumedByUserId(userBDId)
 	if err1 != nil {
 		b.replyWithText(msg, b.texts(msg).FailedLookingConsumed+": "+err1.Error())
 	}
