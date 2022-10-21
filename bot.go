@@ -3,7 +3,9 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -431,31 +433,45 @@ func (b *Bot) findList(msg *tgbotapi.Message) {
 
 }
 
-/*==================
+/*
+==================
 IMPORT AND EXPORT
-===================*/
+===================
+*/
 func (b *Bot) importKnowledges(msg *tgbotapi.Message) {
-	// println(msg.ReplyToMessage.Document.FileName)
-	// csvfilepath := msg.ReplyToMessage.Document.FileName
-	//TODO: DOWNLOAD FILE...
-	// b.parseCSV(downloaded_filepath)
-	b.parseCSV("")
+	fileLink, err := b.bot.GetFileDirectURL(msg.ReplyToMessage.Document.FileID)
+	if err != nil {
+		log.Println("Error getting file link: ", err)
+		b.replyWithText(msg, b.texts(msg).FailedToGetFile)
+		return
+	}
+
+	resp, err := http.Get(fileLink) // TODO file might be too malicious - check it somehow
+	if err != nil {
+		log.Println("Error getting file: ", err)
+		b.replyWithText(msg, b.texts(msg).FailedToGetFile)
+		return
+	}
+	defer resp.Body.Close()
+
+	knowledges, err := b.parseCSV(resp.Body)
+	if err != nil {
+		log.Println("Error parsing file: ", err)
+		b.replyWithText(msg, b.texts(msg).FailedToParseFile)
+		return
+	}
+
+	// TODO save knowledges to DB
 }
 
-func (b *Bot) parseCSV(path string) {
-	// knowledgeFile, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, os.ModePerm)
-	knowledgeFile, err := os.OpenFile("knw1.csv", os.O_RDWR|os.O_CREATE, os.ModePerm)
-	if err != nil {
-		panic(err)
-	}
-	defer knowledgeFile.Close()
-
+func (b *Bot) parseCSV(data io.Reader) ([]*knowledge, error) {
 	knowledges := []*knowledge{}
 
-	if err := gocsv.UnmarshalFile(knowledgeFile, &knowledges); err != nil { // Load things from file
-		panic(err)
+	if err := gocsv.Unmarshal(data, &knowledges); err != nil { // Load things from file
+		return nil, err
 	}
-	println("I am here")
+
+	return knowledges, nil
 }
 
 /*==================
