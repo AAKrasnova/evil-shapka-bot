@@ -12,6 +12,7 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/pkg/errors"
 
+	"github.com/gocarina/gocsv"
 	"github.com/pechorka/uuid"
 )
 
@@ -81,23 +82,25 @@ type texts struct {
 type localies map[string]texts
 
 type knowledge struct {
-	ID            string    `db:"id"`
-	Name          string    `db:"name"`
-	Adder         string    `db:"adder"`
-	TimeAdded     time.Time `db:"timeAdded"`
-	KnowledgeType string    `db:"type"` //type - keyword in Go, so couldn't use it
-	Subtype       string    `db:"subtype"`
-	Theme         string    `db:"theme"`
-	Sphere        string    `db:"sphere"`
-	Link          string    `db:"link"`
-	WordCount     int       `db:"word_count"`
-	Duration      int       `db:"duration"`
+	ID            string    `db:"id" csv:"-"`
+	Name          string    `db:"name" csv:"Name"`
+	Adder         string    `db:"adder" csv:"-"`
+	TimeAdded     time.Time `db:"timeAdded" csv:"-"`
+	KnowledgeType string    `db:"type" csv:"Type"` //type - keyword in Go, so couldn't use it
+	Subtype       string    `db:"subtype" csv:"Subtype"`
+	Theme         string    `db:"theme" csv:"Theme"`
+	Sphere        string    `db:"sphere" csv:"Sphere"`
+	Link          string    `db:"link" csv:"Link"`
+	WordCount     int       `db:"word_count" csv:"Word Count"`
+	Duration      int       `db:"duration" csv:"Duration"`
 	//language      string `db:"language"`
 	// deleted       bool `db:"deleted"`
-	//notes 	string
 	//file
 	//tags []string
-	isRead int
+	isRead int `csv:"-"`
+	//	DateConsumed time.Time `csv:"Date Consumed"`
+	ReadyToRe int    `csv:"ReadyToRe"`
+	Notes     string `csv:"Notes"`
 }
 
 type user struct {
@@ -176,6 +179,8 @@ func (b *Bot) handleMsg(msg *tgbotapi.Message) {
 		b.find(msg)
 	case "list", "List":
 		b.findList(msg)
+	case "import", "Import":
+		b.importKnowledgesCSV()
 	}
 }
 
@@ -327,6 +332,24 @@ func (b *Bot) findList(msg *tgbotapi.Message) {
 		}
 	} else {
 		b.replyWithText(msg, b.texts(msg).SearchFailed+": "+err.Error())
+	}
+
+}
+
+/*==================
+IMPORT AND EXPORT
+===================*/
+func (b *Bot) importKnowledgesCSV() {
+	knowledgeFile, err := os.OpenFile("knw1.csv", os.O_RDWR|os.O_CREATE, os.ModePerm)
+	if err != nil {
+		panic(err)
+	}
+	defer knowledgeFile.Close()
+
+	knowledges := []*knowledge{}
+
+	if err := gocsv.UnmarshalFile(knowledgeFile, &knowledges); err != nil { // Load things from file
+		panic(err)
 	}
 
 }
