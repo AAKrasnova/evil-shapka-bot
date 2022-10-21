@@ -100,7 +100,7 @@ func (s *Store) markAsRead(knwId string, usrId string) error {
 }
 
 func (s *Store) markAsUnRead(knwId string, usrId string) error {
-	_, err := s.db.Exec("INSERT FROM consumed WHERE knowledge_id=$1 AND user_id=$2", knwId, usrId)
+	_, err := s.db.Exec("DELETE FROM consumed WHERE knowledge_id=$1 AND user_id=$2", knwId, usrId)
 	if err != nil {
 		return errors.Wrap(err, "Deleting consumption in db")
 	}

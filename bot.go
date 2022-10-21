@@ -173,15 +173,15 @@ func (b *Bot) handleMsg(msg *tgbotapi.Message) {
 }
 
 func (b *Bot) handleCallback(callback *tgbotapi.CallbackQuery) {
-	b.ensureUserExists(callback.Message)
+	// b.ensureUserExists(callback.Message) //@pechorka, TODO
 
 	switch {
 	case strings.HasPrefix(callback.Data, "read"):
 		knwID := strings.TrimPrefix(callback.Data, "read")
-		b.s.markAsRead(knwID, uuid.IntToUUID(callback.Message.From.ID))
+		b.s.markAsRead(knwID, uuid.IntToUUID(callback.From.ID))
 	case strings.HasPrefix(callback.Data, "unread"):
 		knwID := strings.TrimPrefix(callback.Data, "unread")
-		b.s.markAsUnRead(knwID, uuid.IntToUUID(callback.Message.From.ID))
+		b.s.markAsUnRead(knwID, uuid.IntToUUID(callback.From.ID))
 	}
 }
 
@@ -344,7 +344,7 @@ func (b *Bot) ensureUserExists(msg *tgbotapi.Message) {
 func (b *Bot) replyWithText(to *tgbotapi.Message, text string) {
 	msg := tgbotapi.NewMessage(to.Chat.ID, text)
 	msg.ReplyToMessageID = to.MessageID
-	msg.ReplyMarkup = tgbotapi.ModeMarkdownV2
+	// msg.ReplyMarkup = tgbotapi.ModeMarkdownV2
 	b.send(msg)
 }
 
@@ -352,7 +352,7 @@ func (b *Bot) replyWithKeyboard(to *tgbotapi.Message, text string, keyboard tgbo
 	msg := tgbotapi.NewMessage(to.Chat.ID, text)
 	msg.ReplyToMessageID = to.MessageID
 	msg.ReplyMarkup = keyboard
-	msg.ReplyMarkup = tgbotapi.ModeMarkdownV2
+	// msg.ReplyMarkup = tgbotapi.ModeMarkdownV2
 	b.send(msg)
 }
 
