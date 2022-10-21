@@ -274,7 +274,7 @@ func (b *Bot) handleMsg(msg *tgbotapi.Message) {
 	case "list", "List":
 		b.findList(msg)
 	case "import", "Import":
-		b.importKnowledgesCSV()
+		b.importKnowledges(msg)
 	}
 }
 
@@ -346,6 +346,7 @@ func (b *Bot) parseKnowledge(msg *tgbotapi.Message) (knowledge, error) { //metho
 		if ContainsAny(s, names.Name...) {
 			knw.Name = trimMeta(names.Name, s)
 		}
+
 		if ContainsAny(s, names.Theme...) {
 			knw.Theme = trimMeta(names.Theme, s)
 		}
@@ -433,7 +434,16 @@ func (b *Bot) findList(msg *tgbotapi.Message) {
 /*==================
 IMPORT AND EXPORT
 ===================*/
-func (b *Bot) importKnowledgesCSV() {
+func (b *Bot) importKnowledges(msg *tgbotapi.Message) {
+	// println(msg.ReplyToMessage.Document.FileName)
+	// csvfilepath := msg.ReplyToMessage.Document.FileName
+	//TODO: DOWNLOAD FILE...
+	// b.parseCSV(downloaded_filepath)
+	b.parseCSV("")
+}
+
+func (b *Bot) parseCSV(path string) {
+	// knowledgeFile, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, os.ModePerm)
 	knowledgeFile, err := os.OpenFile("knw1.csv", os.O_RDWR|os.O_CREATE, os.ModePerm)
 	if err != nil {
 		panic(err)
@@ -445,7 +455,7 @@ func (b *Bot) importKnowledgesCSV() {
 	if err := gocsv.UnmarshalFile(knowledgeFile, &knowledges); err != nil { // Load things from file
 		panic(err)
 	}
-
+	println("I am here")
 }
 
 /*==================
