@@ -22,6 +22,8 @@
         "knowledge_timeadded":"Date added",
         "words":"words",
         "minutes":"minutes",
+        "knowledge_is_read":"✅ Read",
+        "knowledge_is_not_read": "Not read",
         "didnt_find_anything": "Didn't find anything",
         "failed_looking_consumed": "Something went wrong while getting consumed knowledge"
     },
@@ -48,6 +50,8 @@
         "knowledge_timeadded":"Дата добавления",
         "words":"сл.",
         "minutes":"мин.",
+        "knowledge_is_read":"✅ Прочитано",
+        "knowledge_is_not_read": "Не прочитано",
         "didnt_find_anything": "По запросу ничего не найдено",
         "failed_looking_consumed": "Что-то пошло не так при поиске потреблённого контента"
     }

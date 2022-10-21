@@ -41,6 +41,10 @@ var names = ValueNames{
 	WordCount:     []string{"Количество слов", "Word Count", "Word", "Слов", "Words", "Слова", "Слово"},
 }
 
+const Udentified = 0
+const Yes = 1
+const No = 9
+
 /*==================
 CMS
 ===================*/
@@ -68,6 +72,8 @@ type texts struct {
 	KnowledgeTimeAdded        string `json:"knowledge_timeadded"`
 	Words                     string `json:"words"`
 	Minutes                   string `json:"minutes"`
+	KnowledgeIsRead           string `json:"knowledge_is_read"`
+	KnowledgeIsNotRead        string `json:"knowledge_is_not_read"`
 	DidntFindAnything         string `json:"didnt_find_anything"`
 	FailedLookingConsumed     string `json:"failed_looking_consumed"`
 }
@@ -91,6 +97,7 @@ type knowledge struct {
 	//notes 	string
 	//file
 	//tags []string
+	isRead int
 }
 
 type user struct {
@@ -288,7 +295,10 @@ func (b *Bot) find(msg *tgbotapi.Message) {
 		} else {
 			for _, knw := range gotKnowledges {
 				btn := tgbotapi.NewInlineKeyboardButtonData("read", "read"+knw.ID)
+				// We dont use udentified (0) because we have map with only TRUE things. All others aer NO. And we know it
+				knw.isRead = No
 				if consumed[knw.ID] {
+					knw.isRead = Yes
 					btn = tgbotapi.NewInlineKeyboardButtonData("unread", "unread"+knw.ID)
 				}
 				keyboard := tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(btn))
@@ -301,7 +311,7 @@ func (b *Bot) find(msg *tgbotapi.Message) {
 
 }
 func (b *Bot) findList(msg *tgbotapi.Message) {
-	searchString := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(strings.TrimPrefix(msg.Text, "/FindList"), "/findList"), "/findlist"))
+	searchString := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(msg.Text, "/List"), "/list"))
 	userBDId := uuid.IntToUUID(msg.From.ID)
 	gotKnowledges, err := b.s.GetKnowledgeByUserAndSearch(userBDId, searchString)
 	//TODO: <ANAL>: Сколько записей в среднем приходит? <H> Если пришло 100 записей, показать 3, а остальные показать по запросу
@@ -457,6 +467,15 @@ func (b *Bot) FormatKnowledge(knowledge knowledge, full bool, msg *tgbotapi.Mess
 		}
 		if knowledge.WordCount > 0 {
 			str += "\n" + b.texts(msg).KnowledgeWordCount + ": " + strconv.Itoa(knowledge.WordCount) + " " + b.texts(msg).Words
+		}
+		if knowledge.isRead != Udentified {
+			if knowledge.isRead == Yes {
+				str += "\n" + b.texts(msg).KnowledgeIsRead
+			}
+			if knowledge.isRead == No {
+				str += "\n" + b.texts(msg).KnowledgeIsNotRead
+			}
+
 		}
 		//str += "\n" + b.texts(msg).KnowledgeAdder + ": " + knowledge.Adder //TODO: <H> Сделать красивое выведение имени, а не id пользователя 😆
 
