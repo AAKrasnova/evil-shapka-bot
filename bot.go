@@ -81,6 +81,9 @@ type texts struct {
 	KnowledgeIsNotRead        string `json:"knowledge_is_not_read"`
 	DidntFindAnything         string `json:"didnt_find_anything"`
 	FailedLookingConsumed     string `json:"failed_looking_consumed"`
+	FailedToGetFile           string `json:"failed_to_get_file"`
+	FailedToParseFile         string `json:"failed_to_parse_file"`
+	SuccessfullyImported      string `json:"successfully_imported"`
 }
 
 type localies struct {
@@ -213,9 +216,10 @@ TELEGRAM BOT
 ===================*/
 
 type Bot struct {
-	s   *Store
-	bot *tgbotapi.BotAPI
-	cms *localies
+	s     *Store
+	bot   *tgbotapi.BotAPI
+	cms   *localies
+	debug bool
 }
 
 func NewBot(s *Store, token string) (*Bot, error) {
@@ -234,9 +238,9 @@ func NewBot(s *Store, token string) (*Bot, error) {
 	if err != nil {
 		return nil, err
 	}
-	bot.Debug = true
+	bot.Debug = true // TODO before release take from config
 
-	return &Bot{s: s, bot: bot, cms: cms}, nil
+	return &Bot{s: s, bot: bot, cms: cms, debug: true}, nil
 }
 
 func (b *Bot) Run() error {
@@ -444,21 +448,36 @@ func (b *Bot) importKnowledges(msg *tgbotapi.Message) {
 		b.replyError(msg, b.texts(msg).FailedToGetFile, errors.Wrap(err, "failed to get file link"))
 		return
 	}
+	b.replyDebug(msg, "Got file link")
 
-	resp, err := http.Get(fileLink) // TODO file might be too malicious - check it somehow
+	resp, err := http.Get(fileLink) // TODO @pechorka file might be too malicious - check it somehow
 	if err != nil {
 		b.replyError(msg, b.texts(msg).FailedToGetFile, errors.Wrap(err, "failed to get file"))
 		return
 	}
 	defer resp.Body.Close()
+	b.replyDebug(msg, "Got file")
 
 	knowledges, err := b.parseCSV(resp.Body)
 	if err != nil {
 		b.replyError(msg, b.texts(msg).FailedToParseFile, errors.Wrap(err, "failed to parse file"))
 		return
 	}
+	b.replyDebug(msg, knowledges[0].Name)
+	b.replyDebug(msg, "Parsed")
 
-	// TODO save knowledges to DB
+	knCount := 0
+	for _, kn := range knowledges {
+		_, err := b.s.CreateKnowledge(*kn) //@pechorka, i have no idea why it's * knowledge....
+		if err != nil {
+			b.replyError(msg, b.texts(msg).FailedAddingKnowledge, errors.Wrap(err, "failed to add knowledge: "+kn.Name+kn.Link))
+		} else {
+			knCount++
+		}
+	}
+	b.replyDebug(msg, "added knowledges "+strconv.Itoa(knCount))
+	b.replyWithText(msg, b.texts(msg).SuccessfullyImported)
+
 }
 
 func (b *Bot) parseCSV(data io.Reader) ([]*knowledge, error) {
@@ -492,6 +511,16 @@ func (b *Bot) ensureUserExists(msg *tgbotapi.Message) {
 }
 
 func (b *Bot) replyWithText(to *tgbotapi.Message, text string) {
+	msg := tgbotapi.NewMessage(to.Chat.ID, text)
+	msg.ReplyToMessageID = to.MessageID
+	// msg.ReplyMarkup = tgbotapi.ModeMarkdownV2
+	b.send(msg)
+}
+
+func (b *Bot) replyDebug(to *tgbotapi.Message, text string) {
+	if !b.debug {
+		return
+	}
 	msg := tgbotapi.NewMessage(to.Chat.ID, text)
 	msg.ReplyToMessageID = to.MessageID
 	// msg.ReplyMarkup = tgbotapi.ModeMarkdownV2

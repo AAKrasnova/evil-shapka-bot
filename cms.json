@@ -25,7 +25,10 @@
         "knowledge_is_read":"✅ Read",
         "knowledge_is_not_read": "Not read",
         "didnt_find_anything": "Didn't find anything",
-        "failed_looking_consumed": "Something went wrong while getting consumed knowledge"
+        "failed_looking_consumed": "Something went wrong while getting consumed knowledge",
+        "failed_to_get_file": "Something went wrong while getting the file",
+        "failed_to_parse_file": "Something went wrong while parsing the file",        
+        "successfully_imported": "Import success"
     },
     "ru": {
         "default_error_text": "Что-то пошло не так, попробуйте ещё раз или напишите @Rubella19",
@@ -53,6 +56,9 @@
         "knowledge_is_read":"🎉 Прочитано",
         "knowledge_is_not_read": "Не прочитано",
         "didnt_find_anything": "По запросу ничего не найдено",
-        "failed_looking_consumed": "Что-то пошло не так при поиске потреблённого контента"
+        "failed_looking_consumed": "Что-то пошло не так при поиске потреблённого контента",
+        "failed_to_get_file": "Что-то пошло не так при получении файла",        
+        "failed_to_parse_file": "Что-то пошло не так при разборе файла",
+        "successfully_imported": "Успешно импортировано"
     }
 }
