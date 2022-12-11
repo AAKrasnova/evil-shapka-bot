@@ -48,7 +48,7 @@ EVENT MANAGEMENT
 ===================*/
 func (s *Store) CreateEvent(event event) (string, string, error) {
 	idForCreating := uuid.New()
-	event.Code = strings.Trim(event.Name, " ") + uuid.New()[:7]
+	event.Code = strings.ReplaceAll(event.Name, " ", "") + uuid.New()[:7]
 	log.Println(idForCreating)
 	_, err := s.db.Exec("INSERT INTO events(id, adder, name, timeAdded, code) VALUES ($1, $2, $3, $4, $5)",
 		idForCreating, event.Adder, event.Name, time.Now(), event.Code)
@@ -71,9 +71,9 @@ func (s *Store) CreateEvent(event event) (string, string, error) {
 // }
 
 func (s *Store) GetEventIDByCode(code string) (string, error) {
-	ev := event{}
-	err := s.db.Get(&ev, "SELECT id FROM events WHERE code=$1", code)
-	return ev.ID, errors.Wrap(err, "searching event to by code")
+	var id string
+	err := s.db.Get(&id, "SELECT id FROM events WHERE code=$1", code)
+	return id, errors.Wrap(err, "searching event to by code")
 }
 
 /*==================
@@ -90,15 +90,25 @@ func (s *Store) CreateEntry(entry entry) (string, error) {
 }
 
 func (s *Store) Draw(eventCode string) (entry, error) {
-	eventID, _ := s.GetEventIDByCode(eventCode)
+	eventID, err := s.GetEventIDByCode(eventCode)
+	if err != nil {
+		return entry{}, err
+	}
 	entrs := []entry{}
-	err := s.db.Get(&entrs, "SELECT id, event_id, user_id, entry, timeAdded, drawn FROM entries WHERE event_id=$1 AND drawn=9", eventID)
+	err = s.db.Select(&entrs, "SELECT id, event_id, user_id, entry, timeAdded, drawn FROM entries WHERE event_id=$1 AND drawn=9", eventID)
+	if err != nil {
+		return entry{}, err
+	}
 	s1 := rand.NewSource(time.Now().UnixNano())
 	r1 := rand.New(s1)
+	if len(entrs) <= 0 {
+		return entry{}, errors.New("Didn't find entries to draw")
+	}
 	theEntry := entrs[(r1.Intn(len(entrs)))]
-	//todo: не получилось присвоить - err
-	s.db.Exec("UPDATE entries SET drawn=1 WHERE id=$1", theEntry.ID)
+	_, err = s.db.Exec("UPDATE entries SET drawn=1 WHERE id=$1", theEntry.ID)
 	theEntry.Drawn = 1
-
+	if err != nil {
+		return entry{}, err
+	}
 	return theEntry, errors.Wrap(err, "drawing")
 }

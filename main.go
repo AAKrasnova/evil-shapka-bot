@@ -56,7 +56,7 @@ func run() error {
 		log.SetOutput(logFile)
 	}
 
-	rawDB, err := sql.Open("sqlite3", "reminder.db")
+	rawDB, err := sql.Open("sqlite3", "evilsanta.db")
 	if err != nil {
 		return err
 	}

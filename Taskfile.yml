@@ -7,14 +7,14 @@ tasks:
 
   migrate:
     vars:
-      DB_PATH: reminder.db
+      DB_PATH: evilsanta.db
     cmds:
       - migrate -source file://migrations -database sqlite3://{{.DB_PATH}} up
   
   bot:
     cmds:
       - go install
-      - studyreminder.exe
+      - evilsanta.exe
   
   test:
     cmds:

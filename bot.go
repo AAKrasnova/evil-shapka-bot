@@ -28,17 +28,18 @@ CMS
 ===================*/
 
 type texts struct {
-	DefaultErrorText   string `json:"default_error_text"`
-	StartDialogue      string `json:"start_dialogue"`
-	FailedCreatingUser string `json:"failed_creating_user"`
+	DefaultErrorText    string `json:"default_error_text"`
+	StartDialogue       string `json:"start_dialogue"`
+	FailedCreatingUser  string `json:"failed_creating_user"`
 	FailedCreatingEvent string `json:"failed_creating_event"`
-	YourCode string `json:"your_code"`
-	CopyByClicking string `json:"copy_by_clicking"`
-	TryCreateEntry string `json:"try_create_entry"`
+	YourCode            string `json:"your_code"`
+	CopyByClicking      string `json:"copy_by_clicking"`
+	TryCreateEntry      string `json:"try_create_entry"`
 	FailedCreatingEntry string `json:"failed_creating_entry"`
-	EntryAdded string `json:"entry_added"`
-	FailedDrawingEntry string `json:"failed_drawing_entry"`
-	YouDrewEntry string `json:"you_drew_entry"`
+	EntryAdded          string `json:"entry_added"`
+	FailedDrawingEntry  string `json:"failed_drawing_entry"`
+	YouDrewEntry        string `json:"you_drew_entry"`
+	FailedParseEntry    string `json:"failed_parse_entry"`
 }
 
 type localies struct {
@@ -158,12 +159,12 @@ type user struct {
 
 type entry struct {
 	ID        string    `db:"id"`
-	EventID      string    `db:"event_id"`
-	EventCode string
+	EventID   string    `db:"event_id"`
+	EventCode string    `db:"code"`
 	Adder     string    `db:"user_id"`
 	TimeAdded time.Time `db:"timeAdded"`
-	Entry      string    `db:"entry"`
-	Drawn int64  `db:"drawn"` //  Udentified = 0, Yes = 1,  No = 9
+	Entry     string    `db:"entry"`
+	Drawn     int64     `db:"drawn"` //  Udentified = 0, Yes = 1,  No = 9
 }
 
 /*==================
@@ -209,10 +210,6 @@ func (b *Bot) Run() error {
 		if msg := update.Message; msg != nil {
 			b.handleMsg(msg)
 		}
-
-		if callback := update.CallbackQuery; callback != nil {
-			b.handleCallback(callback)
-		}
 	}
 	return nil
 }
@@ -248,46 +245,49 @@ func (b *Bot) start(msg *tgbotapi.Message) {
 
 /*EVENT MANAGEMENT*/
 func (b *Bot) newEvent(msg *tgbotapi.Message) {
-	evt:=event {
+	evt := event{
 		Name:  msg.CommandArguments(),
 		Adder: uuid.IntToUUID(msg.From.ID),
 	}
 
-	_, evt.Code, err: = b.s.CreateEvent(evt)
+	_, code, err := b.s.CreateEvent(evt)
 	if err != nil {
 		log.Println("error while creating event", err)
 		b.replyWithText(msg, b.texts(msg).FailedCreatingEvent)
 	}
-	b.replyWithText(msg, b.texts(msg).YourCode+" `"+evt.Code+"` "+"b.texts(msg).CopyByClicking"+"b.texts(msg).TryCreateEntry")
+	b.replyWithText(msg, b.texts(msg).YourCode+" `"+code+"` "+b.texts(msg).CopyByClicking+b.texts(msg).TryCreateEntry)
 }
 
 func (b *Bot) put(msg *tgbotapi.Message) {
-	codeentry := strings.SplitN(msg.CommandArguments(), ":", 2)
+	code, putentry, ok := strings.Cut(msg.CommandArguments(), ":")
 	// a := strings.SplitN("Code24141: Masha Ivanova", ":", 2)
 	// fmt.Println(a[0])
 	// fmt.Println(a[1])
-//>>>> 	Code24141
-//>>>>  Masha Ivanova
+	//>>>> 	Code24141
+	//>>>>  Masha Ivanova
 
-//TODO: parsing error
-	entr:= entry{
-		Adder: uuid.IntToUUID(msg.From.ID),
-		EventCode: codeentry[0],
-		Entry: strings.TrimSpace(codeentry[1])
+	if !ok {
+		b.replyWithText(msg, b.texts(msg).FailedParseEntry)
+		return
+	}
+	entr := entry{
+		Adder:     uuid.IntToUUID(msg.From.ID),
+		EventCode: code,
+		Entry:     strings.TrimSpace(putentry),
 	}
 
-	_, err: = b.s.CreateEntry(entr)
+	id, err := b.s.CreateEntry(entr)
 	if err != nil {
 		log.Println("error while creating entry", err)
 		b.replyWithText(msg, b.texts(msg).FailedCreatingEntry)
 	}
-	b.replyWithText(msg, b.texts(msg).EntryAdded+" "+entr.ID)
+	b.replyWithText(msg, b.texts(msg).EntryAdded+" "+id)
 }
 
 func (b *Bot) draw(msg *tgbotapi.Message) {
-	code:= msg.CommandArguments()
-	theEntry, err:= b.s.Draw(code)
-	
+	code := msg.CommandArguments()
+	theEntry, err := b.s.Draw(code)
+
 	if err != nil {
 		log.Println("error while drawing entry", err)
 		b.replyWithText(msg, b.texts(msg).FailedDrawingEntry)
@@ -319,7 +319,7 @@ func (b *Bot) ensureUserExists(msg *tgbotapi.Message) {
 func (b *Bot) replyWithText(to *tgbotapi.Message, text string) {
 	msg := tgbotapi.NewMessage(to.Chat.ID, text)
 	msg.ReplyToMessageID = to.MessageID
-	msg.ParseMode = tgbotapi.ModeMarkdownV2
+	// msg.ParseMode = tgbotapi.ModeMarkdownV2
 	b.send(msg)
 }
 
@@ -329,7 +329,6 @@ func (b *Bot) replyDebug(to *tgbotapi.Message, text string) {
 	}
 	msg := tgbotapi.NewMessage(to.Chat.ID, text)
 	msg.ReplyToMessageID = to.MessageID
-	// msg.ReplyMarkup = tgbotapi.ModeMarkdownV2
 	b.send(msg)
 }
 
