@@ -2,12 +2,8 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
-	"io"
 	"log"
-	"net/http"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -16,35 +12,12 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/pkg/errors"
 
-	"github.com/gocarina/gocsv"
 	"github.com/pechorka/uuid"
 )
 
 /*==================
 USEFUL VALUES
 ===================*/
-
-type ValueNames struct {
-	Name          []string
-	Link          []string
-	Theme         []string
-	Sphere        []string
-	KnowledgeType []string
-	Subtype       []string
-	Duration      []string
-	WordCount     []string
-}
-
-var names = ValueNames{
-	Name:          []string{"Название", "Name"},
-	Link:          []string{"Ссылка", "Link"},
-	Theme:         []string{"Тема", "Theme", "Topic"},
-	Sphere:        []string{"Сфера", "#", "Sphere"},
-	KnowledgeType: []string{"Тип", "Type"},
-	Subtype:       []string{"Подтип", "Subtype"},
-	Duration:      []string{"Длительность", "Duration"},
-	WordCount:     []string{"Количество слов", "Word Count", "Word", "Слов", "Words", "Слова", "Слово"},
-}
 
 const Udentified = 0
 const Yes = 1
@@ -55,35 +28,17 @@ CMS
 ===================*/
 
 type texts struct {
-	DefaultErrorText          string `json:"default_error_text"`
-	NoLinkErrorText           string `json:"no_link_error_text"`
-	InvalidDurationErrorText  string `json:"invalid_duration_error_text"`
-	InvalidWordCountErrorText string `json:"invalid_wordcount_error_text"`
-	StartDialogue             string `json:"start_dialogue"`
-	FailedToParseKnowledge    string `json:"failed_parse_knowledge"`
-	SuccessfullyAdded         string `json:"successfully_added"`
-	FailedAddingKnowledge     string `json:"failed_adding_knowlegde"`
-	FailedCreatingUser        string `json:"failed_creating_user"`
-	SearchFailed              string `json:"search_failed"`
-	KnowledgeName             string `json:"knowledge_name"`
-	KnowledgeLink             string `json:"knowledge_link"`
-	KnowledgeDuration         string `json:"knowledge_duration"`
-	KnowledgeWordCount        string `json:"knowledge_wordcount"`
-	KnowledgeSphere           string `json:"knowledge_sphere"`
-	KnowledgeTheme            string `json:"knowledge_theme"`
-	KnowledgeType             string `json:"knowledge_type"`
-	KnowledgeSubtype          string `json:"knowledge_subtype"`
-	KnowledgeAdder            string `json:"knowledge_adder"`
-	KnowledgeTimeAdded        string `json:"knowledge_timeadded"`
-	Words                     string `json:"words"`
-	Minutes                   string `json:"minutes"`
-	KnowledgeIsRead           string `json:"knowledge_is_read"`
-	KnowledgeIsNotRead        string `json:"knowledge_is_not_read"`
-	DidntFindAnything         string `json:"didnt_find_anything"`
-	FailedLookingConsumed     string `json:"failed_looking_consumed"`
-	FailedToGetFile           string `json:"failed_to_get_file"`
-	FailedToParseFile         string `json:"failed_to_parse_file"`
-	SuccessfullyImported      string `json:"successfully_imported"`
+	DefaultErrorText   string `json:"default_error_text"`
+	StartDialogue      string `json:"start_dialogue"`
+	FailedCreatingUser string `json:"failed_creating_user"`
+	FailedCreatingEvent string `json:"failed_creating_event"`
+	YourCode string `json:"your_code"`
+	CopyByClicking string `json:"copy_by_clicking"`
+	TryCreateEntry string `json:"try_create_entry"`
+	FailedCreatingEntry string `json:"failed_creating_entry"`
+	EntryAdded string `json:"entry_added"`
+	FailedDrawingEntry string `json:"failed_drawing_entry"`
+	YouDrewEntry string `json:"you_drew_entry"`
 }
 
 type localies struct {
@@ -180,26 +135,16 @@ func (l *localies) texts(msg *tgbotapi.Message) texts {
 	return l.cms[getLanguageCode(msg)]
 }
 
-type knowledge struct {
-	ID            string    `db:"id" csv:"-"`
-	Name          string    `db:"name" csv:"Name"`
-	Adder         string    `db:"adder" csv:"-"`
-	TimeAdded     time.Time `db:"timeAdded" csv:"-"`
-	KnowledgeType string    `db:"type" csv:"Type"` //type - keyword in Go, so couldn't use it
-	Subtype       string    `db:"subtype" csv:"Subtype"`
-	Theme         string    `db:"theme" csv:"Theme"`
-	Sphere        string    `db:"sphere" csv:"Sphere"`
-	Link          string    `db:"link" csv:"Link"`
-	WordCount     int       `db:"word_count" csv:"Word Count"`
-	Duration      int       `db:"duration" csv:"Duration"`
-	//language      string `db:"language"`
-	// deleted       bool `db:"deleted"`
-	//file
-	//tags []string
-	isRead int `csv:"-"`
-	//	DateConsumed time.Time `csv:"Date Consumed"`
-	ReadyToRe int    `csv:"ReadyToRe"`
-	Notes     string `csv:"Notes"`
+/*==================
+TYPES
+===================*/
+
+type event struct {
+	ID        string    `db:"id"`
+	Name      string    `db:"name"`
+	Adder     string    `db:"adder"`
+	TimeAdded time.Time `db:"timeAdded"`
+	Code      string    `db:"code"`
 }
 
 type user struct {
@@ -209,6 +154,16 @@ type user struct {
 	TGFirstName string `db:"tg_first_name"`
 	TGLastName  string `db:"tg_last_name"`
 	TGLanguage  string `db:"tg_language"`
+}
+
+type entry struct {
+	ID        string    `db:"id"`
+	EventID      string    `db:"event_id"`
+	EventCode string
+	Adder     string    `db:"user_id"`
+	TimeAdded time.Time `db:"timeAdded"`
+	Entry      string    `db:"entry"`
+	Drawn int64  `db:"drawn"` //  Udentified = 0, Yes = 1,  No = 9
 }
 
 /*==================
@@ -271,29 +226,14 @@ func (b *Bot) handleMsg(msg *tgbotapi.Message) {
 	b.ensureUserExists(msg)
 
 	switch msg.Command() {
-	case "add", "", "Add":
-		b.add(msg)
-	case "start", "Start":
+	case "NewEvent", "newevent":
+		b.newEvent(msg)
+	case "Put", "put":
+		b.put(msg)
+	case "Draw", "draw":
+		b.draw(msg)
+	case "Start", "start":
 		b.start(msg)
-	case "find", "Find":
-		b.find(msg)
-	case "list", "List":
-		b.findList(msg)
-	case "import", "Import":
-		b.importKnowledges(msg)
-	}
-}
-
-func (b *Bot) handleCallback(callback *tgbotapi.CallbackQuery) {
-	// b.ensureUserExists(callback.Message) //@pechorka, TODO
-
-	switch {
-	case strings.HasPrefix(callback.Data, "read"):
-		knwID := strings.TrimPrefix(callback.Data, "read")
-		b.s.markAsRead(knwID, uuid.IntToUUID(callback.From.ID))
-	case strings.HasPrefix(callback.Data, "unread"):
-		knwID := strings.TrimPrefix(callback.Data, "unread")
-		b.s.markAsUnRead(knwID, uuid.IntToUUID(callback.From.ID))
 	}
 }
 
@@ -306,188 +246,54 @@ func (b *Bot) start(msg *tgbotapi.Message) {
 	b.replyWithText(msg, b.texts(msg).StartDialogue)
 }
 
-/*KNOWLEDGE MANAGEMENT*/
-func (b *Bot) add(msg *tgbotapi.Message) {
-	knw, err := b.parseKnowledge(msg)
-	if err != nil {
-		log.Println("error while parsing knowledge", err)
-		b.replyWithText(msg, b.texts(msg).FailedToParseKnowledge+": "+err.Error())
-		return
+/*EVENT MANAGEMENT*/
+func (b *Bot) newEvent(msg *tgbotapi.Message) {
+	evt:=event {
+		Name:  msg.CommandArguments(),
+		Adder: uuid.IntToUUID(msg.From.ID),
 	}
-	knw.Adder = uuid.IntToUUID(msg.From.ID)
 
-	idKnowledge := ""
-	idKnowledge, err = b.s.CreateKnowledge(knw)
+	_, evt.Code, err: = b.s.CreateEvent(evt)
 	if err != nil {
-		log.Println("error while creating knowledge", err.Error())
-		b.replyWithText(msg, b.texts(msg).FailedAddingKnowledge)
-	} else {
-		knwldge, err1 := b.s.getKnowledgeById(idKnowledge)
-		if err1 != nil {
-			log.Println("error while retrieving created knowledge", err1)
-			b.replyWithText(msg, b.texts(msg).FailedAddingKnowledge)
-		} else {
-			b.replyWithText(msg, b.texts(msg).SuccessfullyAdded+"\n"+b.FormatKnowledge(knwldge, false, msg))
-		}
+		log.Println("error while creating event", err)
+		b.replyWithText(msg, b.texts(msg).FailedCreatingEvent)
 	}
+	b.replyWithText(msg, b.texts(msg).YourCode+" `"+evt.Code+"` "+"b.texts(msg).CopyByClicking"+"b.texts(msg).TryCreateEntry")
 }
 
-func (b *Bot) parseKnowledge(msg *tgbotapi.Message) (knowledge, error) { //method creating struct KNOWLEDGE from user input
-	text := strings.TrimSpace(strings.TrimPrefix(msg.Text, "/add"))
-	// text := msg.CommandArguments() - для команд, которые настоящие команды, а не которые пустую команду берут
-	var err error
-	var knw knowledge = knowledge{}
+func (b *Bot) put(msg *tgbotapi.Message) {
+	codeentry := strings.SplitN(msg.CommandArguments(), ":", 2)
+	// a := strings.SplitN("Code24141: Masha Ivanova", ":", 2)
+	// fmt.Println(a[0])
+	// fmt.Println(a[1])
+//>>>> 	Code24141
+//>>>>  Masha Ivanova
 
-	split := strings.Split(text, "\n")
-	for _, s := range split {
-		s = strings.TrimSpace(s)
-		if ContainsAny(s, "http://", "https://", "www.") || ContainsAny(s, names.Link...) {
-			a := trimMeta(names.Link, s)
-			if !strings.Contains(a, " ") {
-				knw.Link = a
-			} else {
-				return knowledge{}, errors.New(b.texts(msg).NoLinkErrorText) //TODO: подумать, может быть можно добавлять материалы без ссылок..?
-			}
-		}
-		if ContainsAny(s, names.Name...) {
-			knw.Name = trimMeta(names.Name, s)
-		}
-
-		if ContainsAny(s, names.Theme...) {
-			knw.Theme = trimMeta(names.Theme, s)
-		}
-		if ContainsAny(s, names.Sphere...) {
-			knw.Sphere = trimMeta(names.Sphere, s)
-		}
-		if ContainsAny(s, names.KnowledgeType...) {
-			knw.KnowledgeType = trimMeta(names.KnowledgeType, s)
-		}
-		if ContainsAny(s, names.Subtype...) {
-			knw.Subtype = trimMeta(names.Subtype, s)
-		}
-		if ContainsAny(s, names.Duration...) {
-			a := trimMeta(names.Duration, s)
-			knw.Duration, err = strconv.Atoi(a)
-			if err != nil {
-				log.Println("parsing error: ", err, "full line", s)
-				return knowledge{}, errors.New(b.texts(msg).InvalidDurationErrorText) //TODO не падать, а закидывать нераспарсенное в заметки.
-			}
-		}
-		if ContainsAny(s, names.WordCount...) {
-			a := trimMeta(names.WordCount, s)
-			knw.WordCount, err = strconv.Atoi(a)
-			if err != nil {
-				return knowledge{}, errors.New(b.texts(msg).InvalidWordCountErrorText) //TODO не падать, а закидывать нераспарсенное в заметки.
-			}
-		}
-
+//TODO: parsing error
+	entr:= entry{
+		Adder: uuid.IntToUUID(msg.From.ID),
+		EventCode: codeentry[0],
+		Entry: strings.TrimSpace(codeentry[1])
 	}
 
-	return knw, err
-}
-
-func (b *Bot) find(msg *tgbotapi.Message) {
-	searchString := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(msg.Text, "/Find"), "/find"))
-	userBDId := uuid.IntToUUID(msg.From.ID)
-	consumed, err1 := b.s.getConsumedByUserId(userBDId)
-	if err1 != nil {
-		b.replyWithText(msg, b.texts(msg).FailedLookingConsumed+": "+err1.Error())
-	}
-	gotKnowledges, err := b.s.GetKnowledgeByUserAndSearch(userBDId, searchString)
-	//TODO: <ANAL>: Сколько записей в среднем приходит? <H> Если пришло 100 записей, показать 3, а остальные показать по запросу
-	if err == nil {
-		if len(gotKnowledges) == 0 {
-			b.replyWithText(msg, b.texts(msg).DidntFindAnything)
-		} else {
-			for _, knw := range gotKnowledges {
-				btn := tgbotapi.NewInlineKeyboardButtonData("read", "read"+knw.ID)
-				// We dont use udentified (0) because we have map with only TRUE things. All others aer NO. And we know it
-				knw.isRead = No
-				if consumed[knw.ID] {
-					knw.isRead = Yes
-					btn = tgbotapi.NewInlineKeyboardButtonData("unread", "unread"+knw.ID)
-				}
-				keyboard := tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(btn))
-				b.replyWithKeyboard(msg, b.FormatKnowledge(knw, true, msg), keyboard)
-			}
-		}
-	} else {
-		b.replyWithText(msg, b.texts(msg).SearchFailed+": "+err.Error())
-	}
-
-}
-func (b *Bot) findList(msg *tgbotapi.Message) {
-	searchString := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(msg.Text, "/List"), "/list"))
-	userBDId := uuid.IntToUUID(msg.From.ID)
-	gotKnowledges, err := b.s.GetKnowledgeByUserAndSearch(userBDId, searchString)
-	//TODO: <ANAL>: Сколько записей в среднем приходит? <H> Если пришло 100 записей, показать 3, а остальные показать по запросу
-	if err == nil {
-		if len(gotKnowledges) == 0 {
-			b.replyWithText(msg, b.texts(msg).DidntFindAnything)
-		} else {
-			answermessage := ""
-			for _, knw := range gotKnowledges {
-				answermessage += "\n" + b.FormatKnowledge(knw, false, msg)
-			}
-			b.replyWithText(msg, answermessage)
-		}
-	} else {
-		b.replyWithText(msg, b.texts(msg).SearchFailed+": "+err.Error())
-	}
-
-}
-
-/*
-==================
-IMPORT AND EXPORT
-===================
-*/
-func (b *Bot) importKnowledges(msg *tgbotapi.Message) {
-	fileLink, err := b.bot.GetFileDirectURL(msg.ReplyToMessage.Document.FileID)
+	_, err: = b.s.CreateEntry(entr)
 	if err != nil {
-		b.replyError(msg, b.texts(msg).FailedToGetFile, errors.Wrap(err, "failed to get file link"))
-		return
+		log.Println("error while creating entry", err)
+		b.replyWithText(msg, b.texts(msg).FailedCreatingEntry)
 	}
-	b.replyDebug(msg, "Got file link")
-
-	resp, err := http.Get(fileLink) // TODO @pechorka file might be too malicious - check it somehow
-	if err != nil {
-		b.replyError(msg, b.texts(msg).FailedToGetFile, errors.Wrap(err, "failed to get file"))
-		return
-	}
-	defer resp.Body.Close()
-	b.replyDebug(msg, "Got file")
-
-	knowledges, err := b.parseCSV(resp.Body)
-	if err != nil {
-		b.replyError(msg, b.texts(msg).FailedToParseFile, errors.Wrap(err, "failed to parse file"))
-		return
-	}
-	b.replyDebug(msg, knowledges[0].Name)
-	b.replyDebug(msg, "Parsed")
-
-	knCount := 0
-	for _, kn := range knowledges {
-		_, err := b.s.CreateKnowledge(*kn) //@pechorka, i have no idea why it's * knowledge....
-		if err != nil {
-			b.replyError(msg, b.texts(msg).FailedAddingKnowledge, errors.Wrap(err, "failed to add knowledge: "+kn.Name+kn.Link))
-		} else {
-			knCount++
-		}
-	}
-	b.replyDebug(msg, "added knowledges "+strconv.Itoa(knCount))
-	b.replyWithText(msg, b.texts(msg).SuccessfullyImported)
-
+	b.replyWithText(msg, b.texts(msg).EntryAdded+" "+entr.ID)
 }
 
-func (b *Bot) parseCSV(data io.Reader) ([]*knowledge, error) {
-	knowledges := []*knowledge{}
-
-	if err := gocsv.Unmarshal(data, &knowledges); err != nil { // Load things from file
-		return nil, err
+func (b *Bot) draw(msg *tgbotapi.Message) {
+	code:= msg.CommandArguments()
+	theEntry, err:= b.s.Draw(code)
+	
+	if err != nil {
+		log.Println("error while drawing entry", err)
+		b.replyWithText(msg, b.texts(msg).FailedDrawingEntry)
 	}
+	b.replyWithText(msg, b.texts(msg).YouDrewEntry+" "+theEntry.Entry)
 
-	return knowledges, nil
 }
 
 /*==================
@@ -513,7 +319,7 @@ func (b *Bot) ensureUserExists(msg *tgbotapi.Message) {
 func (b *Bot) replyWithText(to *tgbotapi.Message, text string) {
 	msg := tgbotapi.NewMessage(to.Chat.ID, text)
 	msg.ReplyToMessageID = to.MessageID
-	// msg.ReplyMarkup = tgbotapi.ModeMarkdownV2
+	msg.ParseMode = tgbotapi.ModeMarkdownV2
 	b.send(msg)
 }
 
@@ -533,7 +339,6 @@ func (b *Bot) replyError(to *tgbotapi.Message, text string, err error) {
 	if err != nil {
 		log.Println(err.Error())
 	}
-	// msg.ReplyMarkup = tgbotapi.ModeMarkdownV2
 	b.send(msg)
 }
 
@@ -541,7 +346,6 @@ func (b *Bot) replyWithKeyboard(to *tgbotapi.Message, text string, keyboard tgbo
 	msg := tgbotapi.NewMessage(to.Chat.ID, text)
 	msg.ReplyToMessageID = to.MessageID
 	msg.ReplyMarkup = keyboard
-	// msg.ReplyMarkup = tgbotapi.ModeMarkdownV2
 	b.send(msg)
 }
 
@@ -555,53 +359,6 @@ func (b *Bot) send(msg tgbotapi.MessageConfig) {
 /*==================
 LITTLE HELPER FUNCTIONS
 ===================*/
-/*KNOWLEDGE MANAGEMENT*/
-func ContainsAny(in string, contains ...string) bool { // function to check if there is something from array of strings in the beggining or end of text
-	f := func(containsAllCase ...string) bool {
-		for _, c := range containsAllCase {
-			if strings.HasPrefix(in, c) || strings.HasSuffix(in, c) {
-				return true
-			}
-		}
-		return false
-	}
-
-	for _, c := range contains {
-		contains = append(contains, strings.ToLower(c), strings.ToUpper(c))
-	}
-
-	return f(contains...)
-}
-
-func trimMeta(name []string, text string) (result string) { // method to delete meta information from line, such as "Name: XXXX" or "Name :XXX" or "XXXX - Name"
-	result = text
-	for _, s := range name {
-		name = append(name, strings.ToLower(s), strings.ToUpper(s))
-	}
-	for i, s := range name {
-		if strings.Contains(text, s) {
-			fmt.Println(i, text, s)
-			//TODO - проверить, что то, что написал Сергей - не хуйня
-			// _, result, _ = strings.Cut(result, ":")
-			// if index := strings.LastIndex(result, "-"); index > 0 {
-			// 	result = result[:index]
-			// }
-			// result = strings.TrimSpace(result)
-			result = strings.TrimSpace(result)
-			result = strings.TrimPrefix(result, s)
-			result = strings.TrimPrefix(result, ": ")
-			result = strings.TrimPrefix(result, " :")
-			result = strings.TrimPrefix(result, ":")
-			result = strings.TrimSuffix(result, s)
-			result = strings.TrimSuffix(result, " - ")
-			result = strings.TrimSuffix(result, "- ")
-			result = strings.TrimSuffix(result, " -")
-			result = strings.TrimSpace(result)
-		}
-	}
-	//TODO Убрать кавычки в оставшемся результате, см.  "case 3.1" в тестах функции
-	return result
-}
 
 func getLanguageCode(msg *tgbotapi.Message) string {
 	lang := "en"
@@ -613,59 +370,4 @@ func getLanguageCode(msg *tgbotapi.Message) string {
 
 func (b *Bot) texts(msg *tgbotapi.Message) texts {
 	return b.cms.texts(msg)
-}
-
-func (b *Bot) FormatKnowledge(knowledge knowledge, full bool, msg *tgbotapi.Message) string {
-	str := ""
-	if full {
-		if len(knowledge.Name) > 0 {
-			str += b.texts(msg).KnowledgeName + ": " + knowledge.Name
-		}
-		if len(knowledge.Link) > 0 {
-			str += "\n" + b.texts(msg).KnowledgeLink + ": " + knowledge.Link
-		}
-		if len(knowledge.Sphere) > 0 {
-			str += "\n" + b.texts(msg).KnowledgeSphere + ": " + knowledge.Sphere
-		}
-		if len(knowledge.KnowledgeType) > 0 {
-			str += "\n" + b.texts(msg).KnowledgeType + ": " + knowledge.KnowledgeType
-		}
-		if len(knowledge.Subtype) > 0 {
-			str += "\n" + b.texts(msg).KnowledgeSubtype + ": " + knowledge.Subtype
-		}
-		if len(knowledge.Theme) > 0 {
-			str += "\n" + b.texts(msg).KnowledgeTheme + ": " + knowledge.Theme
-		}
-		if getLanguageCode(msg) == "ru" {
-			str += "\n" + b.texts(msg).KnowledgeTimeAdded + ": " + knowledge.TimeAdded.Format("02.01.2006 15:04")
-		} else {
-			str += "\n" + b.texts(msg).KnowledgeTimeAdded + ": " + knowledge.TimeAdded.Format("Mon, 02 Jan 2006 03:04")
-		}
-		if knowledge.Duration > 0 {
-			str += "\n" + b.texts(msg).KnowledgeDuration + ": " + strconv.Itoa(knowledge.Duration) + " " + b.texts(msg).Minutes
-		}
-		if knowledge.WordCount > 0 {
-			str += "\n" + b.texts(msg).KnowledgeWordCount + ": " + strconv.Itoa(knowledge.WordCount) + " " + b.texts(msg).Words
-		}
-		if knowledge.isRead != Udentified {
-			if knowledge.isRead == Yes {
-				str += "\n" + b.texts(msg).KnowledgeIsRead
-			}
-			if knowledge.isRead == No {
-				str += "\n" + b.texts(msg).KnowledgeIsNotRead
-			}
-
-		}
-		//str += "\n" + b.texts(msg).KnowledgeAdder + ": " + knowledge.Adder //TODO: <H> Сделать красивое выведение имени, а не id пользователя 😆
-
-	} else {
-		//TODO сделать название кликабельным, а не отдельной строкой @pechorka, пока не поняла, как вообще добавлять Markup
-		if len(knowledge.Name) > 0 {
-			str += knowledge.Name
-		}
-		if len(knowledge.Link) > 0 {
-			str += "\n" + knowledge.Link
-		}
-	}
-	return str
 }

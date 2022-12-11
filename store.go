@@ -2,6 +2,8 @@ package main
 
 import (
 	"log"
+	"math/rand"
+	"strings"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -42,67 +44,61 @@ func (s *Store) GetUserByTelegramId(TGID string) (user, error) {
 }
 
 /*==================
-KNOWLEDGE MANAGEMENT
+EVENT MANAGEMENT
 ===================*/
-
-func (s *Store) CreateKnowledge(knowledge knowledge) (string, error) {
+func (s *Store) CreateEvent(event event) (string, string, error) {
 	idForCreating := uuid.New()
+	event.Code = strings.Trim(event.Name, " ") + uuid.New()[:7]
 	log.Println(idForCreating)
-	_, err := s.db.Exec("INSERT INTO knowledge(id, adder, link, name, timeAdded, type, subtype, theme, sphere, word_count, duration) VALUES ($1, $2, $3, $4, $5, $6, $7, $8,$9, $10, $11)",
-		idForCreating, knowledge.Adder, knowledge.Link, knowledge.Name, time.Now(), knowledge.KnowledgeType, knowledge.Subtype, knowledge.Theme, knowledge.Sphere,
-		knowledge.WordCount, knowledge.Duration)
-	return idForCreating, errors.Wrap(err, "adding material to db")
+	_, err := s.db.Exec("INSERT INTO events(id, adder, name, timeAdded, code) VALUES ($1, $2, $3, $4, $5)",
+		idForCreating, event.Adder, event.Name, time.Now(), event.Code)
+	return idForCreating, event.Code, errors.Wrap(err, "adding event to db")
 }
 
-func (s *Store) getKnowledgeById(id string) (knowledge, error) {
-	knw := knowledge{}
-	err := s.db.Get(&knw, "SELECT id, adder, link, name, timeAdded, type, subtype, theme, sphere, word_count, duration FROM knowledge WHERE id=$1", id)
-	//TODO: someday make SELECT *
-	return knw, err
+// func (s *Store) geteventById(id string) (event, error) {
+// 	knw := event{}
+// 	err := s.db.Get(&knw, "SELECT id, adder, link, name, timeAdded, type, subtype, theme, sphere, word_count, duration FROM event WHERE id=$1", id)
+// 	//TODO: someday make SELECT *
+// 	return knw, err
+// }
+
+// func (s *Store) GeteventByUserAndSearch(userID string, searchString string) ([]event, error) {
+// 	knw := []event{}
+// 	err := s.db.Select(&knw, "SELECT id, adder, link, name, timeAdded, type, subtype, theme, sphere, word_count, duration FROM event WHERE adder=$1 AND (name LIKE $2 OR link LIKE $2 OR sphere LIKE $2 OR type LIKE $2 OR subtype LIKE $2 OR theme LIKE $2)", userID, "%"+searchString+"%")
+// 	//TODO: <QoL> make case insensitive
+// 	//TODO: someday make SELECT *
+// 	return knw, err
+// }
+
+func (s *Store) GetEventIDByCode(code string) (string, error) {
+	ev := event{}
+	err := s.db.Get(&ev, "SELECT id FROM events WHERE code=$1", code)
+	return ev.ID, errors.Wrap(err, "searching event to by code")
 }
 
-func (s *Store) GetKnowledgeByUserAndSearch(userID string, searchString string) ([]knowledge, error) {
-	knw := []knowledge{}
-	err := s.db.Select(&knw, "SELECT id, adder, link, name, timeAdded, type, subtype, theme, sphere, word_count, duration FROM knowledge WHERE adder=$1 AND (name LIKE $2 OR link LIKE $2 OR sphere LIKE $2 OR type LIKE $2 OR subtype LIKE $2 OR theme LIKE $2)", userID, "%"+searchString+"%")
-	//TODO: <QoL> make case insensitive
-	//TODO: someday make SELECT *
-	return knw, err
+/*==================
+ENTRIES MANAGEMENT
+===================*/
+func (s *Store) CreateEntry(entry entry) (string, error) {
+	idForCreating := uuid.New()
+	entry.EventID, _ = s.GetEventIDByCode(entry.EventCode)
+	//todo: do something with errors
+	log.Println(idForCreating, entry.EventID)
+	_, err := s.db.Exec("INSERT INTO entries(id, user_id, event_id, entry, timeAdded, drawn) VALUES ($1, $2, $3, $4, $5, $6)",
+		idForCreating, entry.Adder, entry.EventID, entry.Entry, time.Now(), 9)
+	return idForCreating, errors.Wrap(err, "adding entry to db")
 }
 
-/* Consumption */
+func (s *Store) Draw(eventCode string) (entry, error) {
+	eventID, _ := s.GetEventIDByCode(eventCode)
+	entrs := []entry{}
+	err := s.db.Get(&entrs, "SELECT id, event_id, user_id, entry, timeAdded, drawn FROM entries WHERE event_id=$1 AND drawn=9", eventID)
+	s1 := rand.NewSource(time.Now().UnixNano())
+	r1 := rand.New(s1)
+	theEntry := entrs[(r1.Intn(len(entrs)))]
+	//todo: не получилось присвоить - err
+	s.db.Exec("UPDATE entries SET drawn=1 WHERE id=$1", theEntry.ID)
+	theEntry.Drawn = 1
 
-func (s *Store) getConsumedByUserId(userId string) (map[string]bool, error) {
-	rows, err := s.db.Query("SELECT knowledge_id FROM consumed WHERE user_id=$1", userId)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close() //if err!=nil then rows==nil and defer will cause PANIC! so we close rows after this
-
-	mapa := map[string]bool{}
-	for rows.Next() {
-		knwID := ""
-		err := rows.Scan(&knwID)
-		if err != nil {
-			return nil, err
-		}
-		mapa[knwID] = true
-	}
-
-	return mapa, err
-}
-
-func (s *Store) markAsRead(knwId string, usrId string) error {
-	_, err := s.db.Exec("INSERT INTO consumed(knowledge_id, user_id) VALUES ($1, $2)", knwId, usrId)
-	if err != nil {
-		return errors.Wrap(err, "Creating consumption in db")
-	}
-	return err
-}
-
-func (s *Store) markAsUnRead(knwId string, usrId string) error {
-	_, err := s.db.Exec("DELETE FROM consumed WHERE knowledge_id=$1 AND user_id=$2", knwId, usrId)
-	if err != nil {
-		return errors.Wrap(err, "Deleting consumption in db")
-	}
-	return err
+	return theEntry, errors.Wrap(err, "drawing")
 }

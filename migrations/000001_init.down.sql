@@ -1,4 +1,4 @@
 
 DROP TABLE users;
-DROP TABLE knowledge;
-DROP TABLE consumed ;
+DROP TABLE events;
+DROP TABLE entries ;

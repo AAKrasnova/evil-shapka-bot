@@ -13,47 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestStore_CreateKnowledge(t *testing.T) {
-
-	tests := []struct {
-		name      string
-		knowledge knowledge
-	}{
-		{
-			name: "case 1",
-			knowledge: knowledge{
-				Name:          "Webinar: Importance of Market Research & Cognitive Design by Amazon Sr PM",
-				Adder:         "",
-				KnowledgeType: "Video",
-				Subtype:       "Webinar",
-				Theme:         "Market Research",
-				Sphere:        "PM",
-				Link:          "https://www.linkedin.com/video/event/urn:li:ugcPost:6950083329849221120/",
-				WordCount:     0,
-				Duration:      10,
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			db, cleanup := prepDB(t)
-			t.Cleanup(cleanup)
-			str := NewStore(db)
-			idCreated, err := str.CreateKnowledge(tt.knowledge)
-			if err != nil {
-				t.Errorf("Store.CreateKnowledge() error = %v", err)
-			}
-			gotKnw, err := str.getKnowledgeById(idCreated)
-			if err != nil {
-				t.Errorf("Store.getKnowledgeById() error = %v", err)
-			}
-			tt.knowledge.ID = idCreated
-			tt.knowledge.TimeAdded = gotKnw.TimeAdded // don't care about this field
-			require.Equal(t, tt.knowledge, gotKnw)
-		})
-	}
-}
-
 func TestStore_CreateUser(t *testing.T) {
 	tests := []struct {
 		name string

@@ -7,37 +7,27 @@ CREATE TABLE users (
 	tg_language varchar
 );
 
-CREATE TABLE knowledge (
+CREATE TABLE events (
 	id varchar PRIMARY KEY,
 	name varchar,
 	adder varchar,
        timeAdded DATETIME,
-	type varchar,
-	subtype varchar,
-	theme varchar,
-	sphere varchar,
-	link text NOT NULL,
-	word_count integer,
-	duration integer,
-	language varchar,
-       deleted integer,
+	code varchar UNIQUE,
        FOREIGN KEY (adder) 
        REFERENCES users (id) 
               ON DELETE NO ACTION
               ON UPDATE NO ACTION
 );
 
-CREATE TABLE consumed (
-  knowledge_id varchar,
-  user_id varchar,
-  date datetime DEFAULT (DATETIME('now')),
---   ready_to_re integer,
---   rate integer,
---   attentionRate integer,
---   comment text,
-  PRIMARY KEY (knowledge_id, user_id),
-  FOREIGN KEY (knowledge_id) 
-  REFERENCES knowledge (id) 
+CREATE TABLE entries (
+       id varchar PRIMARY KEY,
+       event_id varchar,
+       user_id varchar,
+       entry varchar,
+       timeAdded datetime DEFAULT (DATETIME('now')),
+       drawn integer,
+  FOREIGN KEY (event_id) 
+  REFERENCES events (id) 
          ON DELETE NO ACTION
          ON UPDATE NO ACTION,
   FOREIGN KEY (user_id) 
