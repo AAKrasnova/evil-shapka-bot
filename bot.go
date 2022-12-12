@@ -225,6 +225,8 @@ func (b *Bot) Stop() {
 var inputSanitazer = strings.NewReplacer(
 	"&", "&amp;",
 	"<", "&lt;",
+	">", "&gt;",
+	"\"", "&quot;",
 )
 
 func (b *Bot) handleMsg(msg *tgbotapi.Message) {
@@ -246,10 +248,6 @@ func (b *Bot) handleMsg(msg *tgbotapi.Message) {
 		b.start(msg)
 	case "panic":
 		panic("test panic")
-	case "mktest":
-		b.replyWithText(msg, "This is *bold* and this is _italic_\\.")
-	case "html":
-		b.replyWithText(msg, "This is <b>bold</b> and this is <i>italic</i>.")
 	}
 }
 
@@ -265,7 +263,7 @@ func (b *Bot) start(msg *tgbotapi.Message) {
 /*EVENT MANAGEMENT*/
 func (b *Bot) newEvent(msg *tgbotapi.Message) {
 	evt := event{
-		Name:  msg.CommandArguments(),
+		Name:  inputSanitazer.Replace(msg.CommandArguments()),
 		Adder: uuid.IntToUUID(msg.From.ID),
 	}
 
@@ -273,7 +271,7 @@ func (b *Bot) newEvent(msg *tgbotapi.Message) {
 	if err != nil {
 		b.replyError(msg, b.texts(msg).FailedCreatingEvent, err)
 	}
-	b.replyWithText(msg, b.texts(msg).YourCode+" `"+code+"` "+b.texts(msg).CopyByClicking+b.texts(msg).TryCreateEntry)
+	b.replyWithText(msg, b.texts(msg).YourCode+" <code>"+code+"</code> \n"+b.texts(msg).CopyByClicking+fmt.Sprintf(b.texts(msg).TryCreateEntry, code))
 }
 
 func (b *Bot) put(msg *tgbotapi.Message) {
@@ -288,7 +286,7 @@ func (b *Bot) put(msg *tgbotapi.Message) {
 	if !ok {
 		//@pechor, нужно ли тут создать error, чтобы передать его в replyError? или можно так?
 		b.replyWithText(msg, b.texts(msg).FailedParseEntry)
-		log.Println("Failed to Parse Message for Code+Entry: " + msg.CommandArguments())
+		log.Println("Failed to Parse Message for Code+Entry: " + inputSanitazer.Replace(msg.CommandArguments()))
 		return
 	}
 	entr := entry{
@@ -310,7 +308,7 @@ func (b *Bot) put(msg *tgbotapi.Message) {
 }
 
 func (b *Bot) draw(msg *tgbotapi.Message) {
-	code := msg.CommandArguments()
+	code := inputSanitazer.Replace(msg.CommandArguments())
 	theEntry, err := b.s.Draw(code)
 
 	if err != nil {
