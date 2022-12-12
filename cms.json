@@ -6,12 +6,14 @@
         "failed_creating_event": "Something went wrong while creating event. Try to put beautiful event name",
         "your_code": "Your event code: ",
         "copy_by_clicking": "You can copy it by clicking on it!",
-        "try_create_entry":" Try create entry for this event, use your event code. For example, 'Code24141: Masha Ivanova' ",
-        "failed_creating_entry": "Something went wrong while creting entry. Try to use format 'Code24141: Masha Ivanova'",
-        "failed_parse_entry": "I didn't understand your entry. Try to use format 'Code24141: Masha Ivanova'",
+        "try_create_entry":" Try create entry for this event, use your event code. Use format '[event_code]: [entry]'. For example: 'NewYear: Marie Smith'",
+        "failed_creating_entry": "Something went wrong while creating entry. Try to use format '[event_code]: [entry]'",
+        "failed_creating_entry_no_such_event":"Couldn't find such event. Try create one with '/new_event' command",
+        "failed_parse_entry": "I didn't understand your entry. Try to use format '[event_code]: [entry]'",
         "entry_added": "Entry successfully added: ",
-        "failed_drawing_entry": "Something  went wrong while drawing entry. Make sure you use valid event code",
-        "you_drew_entry": "You drew: "
+        "failed_drawing_entry": "Something went wrong while drawing entry. Make sure you use valid event code",
+        "you_drew_entry": "You drew: ",
+        "no_entries_to_draw": "Shapka is empty, nothing to draw in this event :("
 
     },
     "ru": {
@@ -21,11 +23,13 @@
         "failed_creating_event": "Что-о пошло не так при создании события. Попробуй добавить интересное название для события",
         "your_code": "Твой код события: ",
         "copy_by_clicking": "Скопируй, кликнув на него.",
-        "try_create_entry":" Попробуй создать штуку в событии, используй код события. Например, 'Code24141: Маша Иванова' ",
-        "failed_creating_entry": "Что-то пошло не так при создании штуки. Попробуй формат 'Code24141: Маша Иванова'",
-        "failed_parse_entry": "Что-то пошло не так при парсинге штуки. Попробуй формат 'Code24141: Маша Иванова'",
+        "try_create_entry":" Попробуй создать штуку в событии, используй формат [Код события]: [Запись на бумажке]. Например, 'НовыйГод: Маша Иванова' ",
+        "failed_creating_entry_no_such_event":"Не нашёл такое событие, попробуй создать новое с помощью команды '/new_event'",
+        "failed_creating_entry": "Что-то пошло не так при создании штуки. Попробуй формат '[Код события]: [Запись на бумажке]'",
+        "failed_parse_entry": "Что-то пошло не так при парсинге штуки. Попробуй формат '[Код события]: [Запись на бумажке]'",
         "entry_added": "В шапку закинуто: ",
         "failed_drawing_entry": "Что-то пошло не так при выборе штуки в Шапке. Убедись, что использован корректный код события",
-        "you_drew_entry": "Из Шапки вывалилось: "
+        "you_drew_entry": "Из Шапки вывалилось: ",
+        "no_entries_to_draw": "Запустив руку в шапку, ты осознал(а), что она пуста. Нечего достать"
     }
 }

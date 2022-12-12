@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -28,18 +29,20 @@ CMS
 ===================*/
 
 type texts struct {
-	DefaultErrorText    string `json:"default_error_text"`
-	StartDialogue       string `json:"start_dialogue"`
-	FailedCreatingUser  string `json:"failed_creating_user"`
-	FailedCreatingEvent string `json:"failed_creating_event"`
-	YourCode            string `json:"your_code"`
-	CopyByClicking      string `json:"copy_by_clicking"`
-	TryCreateEntry      string `json:"try_create_entry"`
-	FailedCreatingEntry string `json:"failed_creating_entry"`
-	EntryAdded          string `json:"entry_added"`
-	FailedDrawingEntry  string `json:"failed_drawing_entry"`
-	YouDrewEntry        string `json:"you_drew_entry"`
-	FailedParseEntry    string `json:"failed_parse_entry"`
+	DefaultErrorText                  string `json:"default_error_text"`
+	StartDialogue                     string `json:"start_dialogue"`
+	FailedCreatingUser                string `json:"failed_creating_user"`
+	FailedCreatingEvent               string `json:"failed_creating_event"`
+	YourCode                          string `json:"your_code"`
+	CopyByClicking                    string `json:"copy_by_clicking"`
+	TryCreateEntry                    string `json:"try_create_entry"`
+	FailedCreatingEntry               string `json:"failed_creating_entry"`
+	FailedCreatingEntryDidntFindEvent string `json:"failed_creating_entry_no_such_event"`
+	EntryAdded                        string `json:"entry_added"`
+	FailedDrawingEntry                string `json:"failed_drawing_entry"`
+	YouDrewEntry                      string `json:"you_drew_entry"`
+	NoEntriesToTraw                   string `json:"no_entries_to_draw"`
+	FailedParseEntry                  string `json:"failed_parse_entry"`
 }
 
 type localies struct {
@@ -219,11 +222,21 @@ func (b *Bot) Stop() {
 	b.cms.close()
 }
 
+var inputSanitazer = strings.NewReplacer(
+	"&", "&amp;",
+	"<", "&lt;",
+)
+
 func (b *Bot) handleMsg(msg *tgbotapi.Message) {
+	defer func() {
+		if rec := recover(); rec != nil {
+			b.send(tgbotapi.NewMessage(373512635, fmt.Sprintf("Я запаниковал: %v", rec)))
+		}
+	}()
 	b.ensureUserExists(msg)
 
 	switch msg.Command() {
-	case "NewEvent", "newevent":
+	case "NewEvent", "newevent", "new_event", "New_Event", "New_event":
 		b.newEvent(msg)
 	case "Put", "put":
 		b.put(msg)
@@ -231,6 +244,12 @@ func (b *Bot) handleMsg(msg *tgbotapi.Message) {
 		b.draw(msg)
 	case "Start", "start":
 		b.start(msg)
+	case "panic":
+		panic("test panic")
+	case "mktest":
+		b.replyWithText(msg, "This is *bold* and this is _italic_\\.")
+	case "html":
+		b.replyWithText(msg, "This is <b>bold</b> and this is <i>italic</i>.")
 	}
 }
 
@@ -252,14 +271,14 @@ func (b *Bot) newEvent(msg *tgbotapi.Message) {
 
 	_, code, err := b.s.CreateEvent(evt)
 	if err != nil {
-		log.Println("error while creating event", err)
-		b.replyWithText(msg, b.texts(msg).FailedCreatingEvent)
+		b.replyError(msg, b.texts(msg).FailedCreatingEvent, err)
 	}
 	b.replyWithText(msg, b.texts(msg).YourCode+" `"+code+"` "+b.texts(msg).CopyByClicking+b.texts(msg).TryCreateEntry)
 }
 
 func (b *Bot) put(msg *tgbotapi.Message) {
-	code, putentry, ok := strings.Cut(msg.CommandArguments(), ":")
+
+	code, putentry, ok := strings.Cut(inputSanitazer.Replace(msg.CommandArguments()), ":")
 	// a := strings.SplitN("Code24141: Masha Ivanova", ":", 2)
 	// fmt.Println(a[0])
 	// fmt.Println(a[1])
@@ -267,7 +286,9 @@ func (b *Bot) put(msg *tgbotapi.Message) {
 	//>>>>  Masha Ivanova
 
 	if !ok {
+		//@pechor, нужно ли тут создать error, чтобы передать его в replyError? или можно так?
 		b.replyWithText(msg, b.texts(msg).FailedParseEntry)
+		log.Println("Failed to Parse Message for Code+Entry: " + msg.CommandArguments())
 		return
 	}
 	entr := entry{
@@ -278,8 +299,12 @@ func (b *Bot) put(msg *tgbotapi.Message) {
 
 	id, err := b.s.CreateEntry(entr)
 	if err != nil {
-		log.Println("error while creating entry", err)
-		b.replyWithText(msg, b.texts(msg).FailedCreatingEntry)
+		if errors.Is(err, errNoSuchEvent) {
+			b.replyError(msg, b.texts(msg).FailedCreatingEntryDidntFindEvent, err)
+			return
+		}
+		b.replyError(msg, b.texts(msg).FailedCreatingEntry, err)
+		return
 	}
 	b.replyWithText(msg, b.texts(msg).EntryAdded+" "+id)
 }
@@ -289,8 +314,12 @@ func (b *Bot) draw(msg *tgbotapi.Message) {
 	theEntry, err := b.s.Draw(code)
 
 	if err != nil {
-		log.Println("error while drawing entry", err)
-		b.replyWithText(msg, b.texts(msg).FailedDrawingEntry)
+		if errors.Is(err, errNoEntries) {
+			b.replyError(msg, b.texts(msg).NoEntriesToTraw, err)
+			return
+		}
+		b.replyError(msg, b.texts(msg).FailedDrawingEntry, err)
+		return
 	}
 	b.replyWithText(msg, b.texts(msg).YouDrewEntry+" "+theEntry.Entry)
 
@@ -311,14 +340,14 @@ func (b *Bot) ensureUserExists(msg *tgbotapi.Message) {
 	}
 	_, err := b.s.CreateUser(usr)
 	if err != nil {
-		log.Println("error while creating user", err)
-		b.replyWithText(msg, b.texts(msg).FailedCreatingUser)
+		b.replyError(msg, b.texts(msg).FailedCreatingUser, err)
 	}
 }
 
 func (b *Bot) replyWithText(to *tgbotapi.Message, text string) {
 	msg := tgbotapi.NewMessage(to.Chat.ID, text)
 	msg.ReplyToMessageID = to.MessageID
+	msg.ParseMode = tgbotapi.ModeHTML
 	// msg.ParseMode = tgbotapi.ModeMarkdownV2
 	b.send(msg)
 }

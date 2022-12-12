@@ -48,7 +48,7 @@ EVENT MANAGEMENT
 ===================*/
 func (s *Store) CreateEvent(event event) (string, string, error) {
 	idForCreating := uuid.New()
-	event.Code = strings.ReplaceAll(event.Name, " ", "") + uuid.New()[:7]
+	event.Code = strings.ReplaceAll(strings.ReplaceAll(event.Name, ":", "_"), " ", "_") + uuid.New()[:7]
 	log.Println(idForCreating)
 	_, err := s.db.Exec("INSERT INTO events(id, adder, name, timeAdded, code) VALUES ($1, $2, $3, $4, $5)",
 		idForCreating, event.Adder, event.Name, time.Now(), event.Code)
@@ -79,15 +79,23 @@ func (s *Store) GetEventIDByCode(code string) (string, error) {
 /*==================
 ENTRIES MANAGEMENT
 ===================*/
+var errNoSuchEvent = errors.New("Couldn't find event with this code")
+
 func (s *Store) CreateEntry(entry entry) (string, error) {
 	idForCreating := uuid.New()
-	entry.EventID, _ = s.GetEventIDByCode(entry.EventCode)
-	//todo: do something with errors
+	eventid, err := s.GetEventIDByCode(entry.EventCode)
+	entry.EventID = eventid
+	if err != nil {
+		return idForCreating, errNoSuchEvent
+	}
+
 	log.Println(idForCreating, entry.EventID)
-	_, err := s.db.Exec("INSERT INTO entries(id, user_id, event_id, entry, timeAdded, drawn) VALUES ($1, $2, $3, $4, $5, $6)",
+	_, err = s.db.Exec("INSERT INTO entries(id, user_id, event_id, entry, timeAdded, drawn) VALUES ($1, $2, $3, $4, $5, $6)",
 		idForCreating, entry.Adder, entry.EventID, entry.Entry, time.Now(), 9)
 	return idForCreating, errors.Wrap(err, "adding entry to db")
 }
+
+var errNoEntries = errors.New("Didn't find entries to draw")
 
 func (s *Store) Draw(eventCode string) (entry, error) {
 	eventID, err := s.GetEventIDByCode(eventCode)
@@ -102,7 +110,7 @@ func (s *Store) Draw(eventCode string) (entry, error) {
 	s1 := rand.NewSource(time.Now().UnixNano())
 	r1 := rand.New(s1)
 	if len(entrs) <= 0 {
-		return entry{}, errors.New("Didn't find entries to draw")
+		return entry{}, errNoEntries
 	}
 	theEntry := entrs[(r1.Intn(len(entrs)))]
 	_, err = s.db.Exec("UPDATE entries SET drawn=1 WHERE id=$1", theEntry.ID)
