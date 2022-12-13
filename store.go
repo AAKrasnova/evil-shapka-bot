@@ -46,9 +46,16 @@ func (s *Store) GetUserByTelegramId(TGID string) (user, error) {
 /*==================
 EVENT MANAGEMENT
 ===================*/
+var eventCodeReplcr = strings.NewReplacer(
+	":", "_",
+	" ", "_",
+	".", "_",
+)
+
 func (s *Store) CreateEvent(event event) (string, string, error) {
 	idForCreating := uuid.New()
-	event.Code = strings.ReplaceAll(strings.ReplaceAll(event.Name, ":", "_"), " ", "_") + uuid.New()[:7]
+	event.Code = eventCodeReplcr.Replace(event.Name) + uuid.New()[:7]
+
 	log.Println(idForCreating)
 	_, err := s.db.Exec("INSERT INTO events(id, adder, name, timeAdded, code) VALUES ($1, $2, $3, $4, $5)",
 		idForCreating, event.Adder, event.Name, time.Now(), event.Code)

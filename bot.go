@@ -43,6 +43,7 @@ type texts struct {
 	YouDrewEntry                      string `json:"you_drew_entry"`
 	NoEntriesToTraw                   string `json:"no_entries_to_draw"`
 	FailedParseEntry                  string `json:"failed_parse_entry"`
+	HowToPlay                         string `json:"hot_to_play"`
 }
 
 type localies struct {
@@ -248,6 +249,8 @@ func (b *Bot) handleMsg(msg *tgbotapi.Message) {
 		b.start(msg)
 	case "panic":
 		panic("test panic")
+	case "help", "Help":
+		b.help(msg)
 	}
 }
 
@@ -258,6 +261,10 @@ TELEGRAM BOT: COMMANDS
 */
 func (b *Bot) start(msg *tgbotapi.Message) {
 	b.replyWithText(msg, b.texts(msg).StartDialogue)
+}
+
+func (b *Bot) help(msg *tgbotapi.Message) {
+	b.replyWithText(msg, b.texts(msg).HowToPlay)
 }
 
 /*EVENT MANAGEMENT*/

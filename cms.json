@@ -2,7 +2,8 @@
     "en": {
         "default_error_text": "Something went wrong, please try again later or contact @Rubella19",
         "failed_creating_user": "Something went wrong while creating user",
-        "start_dialogue": "Hello! Welcome to Evil Shapka bot! I can help you to play Evil Santa... and more. Try creating new event (/new_event)! For example: <code> /new_even Name of your awesome event </code>",
+        "hot_to_play":"The options for using the bot are: \n\n<b>Evil Santa </b> \n 1. Create an event, mentioning the name of the team or chat <code> /new_event Your scary event name </code>. You can create an event in a general chat or in a private conversation with the bot. \n 2. Copy the event code and send it to your colleagues. Each of them can put the name of the colleague they want to be fired in the pool using the /put command. This can be done privately 😉 \n 3. In the general chat, anyone can try to draw a name from the pool using the <code> /draw [YourEventCode] </code> command  \n 4.  The person who draws their own name is fired 😈",
+        "start_dialogue": "Hello! Welcome to Evil Shapka bot! I can help you to play Evil Santa... and more. Try creating new event (/new_event)! For example: <code> /new_even Name of your awesome event </code>. To use autocompletion of command name, use TAB",
         "failed_creating_event": "Something went wrong while creating event. Try to put valid event name",
         "your_code": "Your event code: ",
         "copy_by_clicking": "You can copy it by clicking on it!",
@@ -19,7 +20,8 @@
     "ru": {
         "default_error_text": "Что-то пошло не так, попробуйте ещё раз или напишите @Rubella19",
         "failed_creating_user": "Что-то пошло не так при создании пользователя",
-        "start_dialogue": "Привет! Добро пожаловать в бот Злой шапки. Я помогу тебе сыграть в Evil Santa... и не только",
+        "hot_to_play":"Варианты использования бота \n\n<b>Evil Santa </b> \n 1. Создай событие, можешь упомянуть название команды или чатика <code> /new_event Название твоего страшного ивента </code>. Можно создать событие в общем чате или в приватной беседе с ботом. \n 2. Скопируй код события и пришли его коллегам. Каждый из них может положить имя коллеги, чьего увольнения он(а) хочет в шапку с помощью команды /put. Это можно сделать приватно  😉\n 3. В общем чате каждый может попробовать вытащить имя из шапки с помощью команды <code> /draw [ТвойКодСобытия] </code> \n 4. Человек, вытащивший своё имя увольняется 😈 ",
+        "start_dialogue": "Привет! Добро пожаловать в бот Злой шапки. Я помогу тебе сыграть в Evil Santa... и не только. Начни с создания события /new_event, например <code> /new_even Название твоего страшного ивента </code>. \n Каждая команда требует аргумент, так что используй таб для автодополнения команды из подсказчика",
         "failed_creating_event": "Что-о пошло не так при создании события. Попробуй добавить интересное название для события",
         "your_code": "Твой код события: ",
         "copy_by_clicking": "Скопируй, кликнув на него.",
